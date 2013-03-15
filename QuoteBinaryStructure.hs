@@ -55,8 +55,12 @@ mkBody bsn body cs = do
 	mkDef :: [(String, Name)] -> (Int, Either Int String) -> Name -> Q ([Dec], Name)
 	mkDef np (n, Left val) cs' = do
 		cs'' <- newName "cs"
-		d <- valD (varP cs'') (normalB $ appsE
-			[varE 'drop, litE $ integerL $ fromIntegral n, varE cs']) []
+--		d <- valD (varP cs'')
+		let t = (appsE
+			[varE 'drop, litE $ integerL $ fromIntegral n, varE cs'])
+		let p = val `equal` appE (varE 'readInt) (takeE n $ varE cs')
+		let e = [e| error "bad value" |]
+		d <- valD (varP cs'') (normalB $ condE p t e) []
 		return ([d], cs'')
 	mkDef np (n, Right var) cs' = do
 		cs'' <- newName "cs"
@@ -66,6 +70,12 @@ mkBody bsn body cs = do
 		next <- valD (varP cs'') (normalB $ appsE
 			[varE 'drop, litE $ integerL $ fromIntegral n, varE cs']) []
 		return ([def, next], cs'')
+
+equal :: Int -> ExpQ -> ExpQ
+equal x y = infixE (Just $ litE $ integerL $ fromIntegral x) (varE '(==)) (Just y)
+
+takeE :: Int -> ExpQ -> ExpQ
+takeE n xs = appsE [varE 'take, litE $ integerL $ fromIntegral n, xs]
 
 readInt :: String -> Int
 readInt "" = 0
