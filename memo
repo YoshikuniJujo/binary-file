@@ -92,3 +92,12 @@ bitPerPic b[imageDataSize*8/bitPerPic]: colors
 といった感じに。
 
 あと空行を許すようにしよう。
+
+4[256]: colors の場合:
+
+take (4 * 256) -> [[x, y, z, w], [x, y, z, w] ... ] -> map readInt
+drop (4 * 256)
+
+ghc の readFile あるいはその下の getContents の制限がある。
+そこらへんをなんとかしなくてはならない。
+メモリ量の問題だと思うけど。

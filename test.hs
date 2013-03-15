@@ -24,27 +24,17 @@ BitmapFileHeader
 4: verticalDensity
 4: colorIndexNumber
 4: neededIndexNumber
-4: color1
-4: color2
-4: color3
-4: color4
-4: color5
-4: color6
-4: color7
-4: color8
-4: color9
-4: color10
-4: color11
-4: color12
-4: color13
-40: color1423
-4: color24
+4[16]: colors
+4: image0
 
 |]
+
+-- 4[colorIndexNumber]: colors
 
 main = do
 	[fn] <- getArgs
 	cnt <- readFile fn
+--	print $ length cnt
 	print $ readBitmapFileHeader cnt
 
 toRGB :: Int -> (Int, Int, Int)

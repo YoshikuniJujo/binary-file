@@ -3,6 +3,7 @@
 module ParseBinaryStructure (
 	BinaryStructure(..),
 	BinaryStructureItem,
+	Expression(..),
 	bytesOf,
 	sizeOf,
 	valueOf,
@@ -42,23 +43,30 @@ BitmapFileHeader
 
 |]
 
+data Expression
+	= Multiple Expression Expression
+	| Division Expression Expression
+	| Variable String
+	| Number Int
+	deriving Show
+
 data BinaryStructureItem = BinaryStructureItem {
 	binaryStructureItemBytes :: Int,
-	binaryStructureItemListSize :: Maybe (Either Int String),
+	binaryStructureItemListSize :: Maybe Expression, -- (Either Int String),
 	binaryStructureItemValue :: Either Int String
  } deriving Show
 
 bytesOf :: BinaryStructureItem -> Int
 bytesOf = binaryStructureItemBytes
 
-sizeOf :: BinaryStructureItem -> Maybe (Either Int String)
+sizeOf :: BinaryStructureItem -> Maybe Expression
 sizeOf = binaryStructureItemListSize
 
 -- valueOf :: (Int, Either Int String) -> Either Int String
 valueOf = binaryStructureItemValue
 
 binaryStructureItem ::
-	Int -> Maybe (Either Int String) -> Either Int String -> BinaryStructureItem
+	Int -> Maybe Expression -> Either Int String -> BinaryStructureItem
 binaryStructureItem = BinaryStructureItem
 
 {-
@@ -100,10 +108,17 @@ name :: String
 	= [A-Z][a-zA-Z0-9]*	{ $1 : $2 }
 
 dat :: BinaryStructureItem
-	= num size? ':' spaces val emptyLines	{ binaryStructureItem $1 $2 $4 }
+	= num size? ':' spaces val emptyLines
+				{ binaryStructureItem $1 $2 $4 }
 
-size :: Either Int String
-	= '[' val ']'		{ $1 }
+expr :: Expression
+	= expr '*' expr		{ Multiple $1 $2 }
+	/ expr '/' expr		{ Division $1 $2 }
+	/ num			{ Number $1 }
+	/ var			{ Variable $1 }
+
+size :: Expression
+	= '[' expr ']'
 
 val :: Either Int String
 	= num			{ Left $1 }

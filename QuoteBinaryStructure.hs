@@ -39,12 +39,16 @@ mkHaskellTree BinaryStructure{
 mkReader :: String -> [BinaryStructureItem] -> DecQ
 mkReader bsn body = do
 	cs <- newName "cs"
+	ret <- newName "ret"
 	funD (mkName $ "read" ++ bsn)
-		[clause [varP cs] (normalB $ mkBody bsn body cs) []]
+		[clause [varP cs] (normalB $ mkLetRec ret $ mkBody bsn body cs) []]
 
-mkBody :: String -> [BinaryStructureItem] -> Name -> ExpQ
-mkBody bsn body cs = do
-	namePairs <- for names $ \n -> return . (n ,) =<< newName n
+mkLetRec :: Name -> (Name -> ExpQ) -> ExpQ
+mkLetRec n f = letE [valD (varP n) (normalB $ f n) []] $ varE n
+
+mkBody :: String -> [BinaryStructureItem] -> Name -> Name -> ExpQ
+mkBody bsn body cs ret = do
+	namePairs <- for names $ \n -> return . (n ,) =<< newName "tmp"
 --	let defs = map mkValD $ map snd namePairs
 	defs <- gather cs body $ mkDef namePairs
 	letE (map return defs) $ recConE (mkName bsn) (map toPair2 namePairs)
@@ -67,10 +71,40 @@ mkBody bsn body cs = do
 			(normalB $ appE (varE 'readInt) $ takeE n $ varE cs') []
 		next <- valD (varP cs'') (normalB $ dropE n $ varE cs') []
 		return ([def, next], cs'')
---	    | Right var <- valueOf item, Just (Left val) <- sizeOf item = do
---		css'' <- newName "cs"
+	    | Right var <- valueOf item, Just expr <- sizeOf item = do
+		cs'' <- newName "cs"
+		def <- valD (varP $ fromJust $ lookup var np)
+			(normalB $ -- listE $
+				appsE [varE 'map, varE 'readInt,
+				appsE [varE 'devideN, litE $ integerL $
+					fromIntegral n,
+			takeE' (multiE n $ expression ret expr) $ varE cs']]) []
+--		next <- valD (varP cs'') (normalB $ dropE n $ varE cs') []
+		next <- valD (varP cs'') (normalB $
+			dropE' (multiE n $ expression ret expr) $ varE cs') []
+--			dropE' (multiE 1 $ expression ret expr) $ varE cs') []
+		return ([def, next], cs'')
+{-
+	    | Right var <- valueOf item, Just expr <- sizeOf item = do
+		cs'' <- newName "cs"
+--		def <- 
+--		next <- valD (varP cs'') (normalB $
+--			dropE' (multiE n $ expression ret expr) $ varE cs') []
+--		return ([next], cs'')
+		return ([], cs'')
+-}
 	    where
 	    n = bytesOf item
+
+expression :: Name -> Expression -> ExpQ
+expression ret (Variable v) = appE (varE $ mkName v) (varE ret)
+expression _ (Number n) = litE $ integerL $ fromIntegral n
+
+multiE :: Int -> ExpQ -> ExpQ
+multiE x y = infixE (Just $ litE $ integerL $ fromIntegral x) (varE '(*)) (Just y)
+
+multiE' :: ExpQ -> ExpQ -> ExpQ
+multiE' x y = infixE (Just x) (varE '(*)) (Just y)
 
 equal :: Int -> ExpQ -> ExpQ
 equal x y = infixE (Just $ litE $ integerL $ fromIntegral x) (varE '(==)) (Just y)
@@ -78,8 +112,14 @@ equal x y = infixE (Just $ litE $ integerL $ fromIntegral x) (varE '(==)) (Just 
 takeE :: Int -> ExpQ -> ExpQ
 takeE n xs = appsE [varE 'take, litE $ integerL $ fromIntegral n, xs]
 
+takeE' :: ExpQ -> ExpQ -> ExpQ
+takeE' n xs = appsE [varE 'take, n, xs]
+
 dropE :: Int -> ExpQ -> ExpQ
 dropE n xs = appsE [varE 'drop, litE $ integerL $ fromIntegral n, xs]
+
+dropE' :: ExpQ -> ExpQ -> ExpQ
+dropE' n xs = appsE [varE 'drop, n, xs]
 
 readInt :: String -> Int
 readInt "" = 0
@@ -99,7 +139,23 @@ mkData bsn body =
 	name = mkName bsn
 	con = recC (mkName bsn) vsts
 
-	vsts = map toVST names
-	names = rights $ map valueOf body
-	toVST n = varStrictType (mkName n) $
-		strictType notStrict $ conT ''Int
+	vsts = flip map (filter isRight body) $ \item ->
+		case sizeOf item of
+			Nothing -> varStrictType
+--			_ -> varStrictType
+				(mkName $ fromRight $ valueOf item) $
+					strictType notStrict $ conT ''Int
+			_ -> varStrictType
+				(mkName $ fromRight $ valueOf item) $
+					strictType notStrict $
+						appT listT $ conT ''Int
+
+	isRight item
+		| Right _ <- valueOf item = True
+		| otherwise = False
+
+fromRight = either (error "not Right") id
+
+devideN :: Int -> [a] -> [[a]]
+devideN _ [] = []
+devideN n xs = take n xs : devideN n (drop n xs)
