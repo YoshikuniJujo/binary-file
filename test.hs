@@ -1,6 +1,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 
-import QuoteBitmapStructure
+import QuoteBinaryStructure
 
 [binary|
 

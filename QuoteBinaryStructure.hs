@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module QuoteBitmapStructure (
+module QuoteBinaryStructure (
 	binary
 ) where
 
@@ -13,20 +13,20 @@ import Data.Traversable
 import ParseBinaryStructure
 
 main = do
-	runQ (mkHaskellTree $ parseBitmapStructure "BitmapFileHeader") >>= print
+	runQ (mkHaskellTree $ parseBinaryStructure "BinaryFileHeader") >>= print
 
 binary :: QuasiQuoter
 binary = QuasiQuoter {
 	quoteExp = undefined,
 	quotePat = undefined,
 	quoteType = undefined,
-	quoteDec = mkHaskellTree . parseBitmapStructure
+	quoteDec = mkHaskellTree . parseBinaryStructure
  }
 
-mkHaskellTree :: BitmapStructure -> DecsQ
-mkHaskellTree BitmapStructure{
-	bitmapStructureName = bsn,
-	bitmapStructureBody = body } =
+mkHaskellTree :: BinaryStructure -> DecsQ
+mkHaskellTree BinaryStructure{
+	binaryStructureName = bsn,
+	binaryStructureBody = body } =
 	sequence [dataD (cxt []) name [] [con] [''Show]]
 	where
 	name = mkName bsn

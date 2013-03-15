@@ -1,30 +1,30 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes, FlexibleContexts #-}
 
 module ParseBinaryStructure (
-	BitmapStructure(..),
-	parseBitmapStructure
+	BinaryStructure(..),
+	parseBinaryStructure
 ) where
 
 import Text.Peggy
 
 main :: IO ()
 main = do
-	putStrLn "ParseBitmapStructure"
+	putStrLn "ParseBinaryStructure"
 
-data BitmapStructure = BitmapStructure {
-	bitmapStructureName :: String,
-	bitmapStructureBody :: [(Int, Either Int String)]
+data BinaryStructure = BinaryStructure {
+	binaryStructureName :: String,
+	binaryStructureBody :: [(Int, Either Int String)]
  } deriving Show
 
-parseBitmapStructure :: String -> BitmapStructure
-parseBitmapStructure src = case parseString top "<code>" src of
+parseBinaryStructure :: String -> BinaryStructure
+parseBinaryStructure src = case parseString top "<code>" src of
 	Right bs -> bs
 	Left ps -> error $ show ps
 
 [peggy|
 
-top :: BitmapStructure
-	= spaces name	{ BitmapStructure $2 undefined }
+top :: BinaryStructure
+	= spaces name	{ BinaryStructure $2 undefined }
 
 spaces :: ()
 	= [ \n]*		{ () }
