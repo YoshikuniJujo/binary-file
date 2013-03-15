@@ -4,6 +4,7 @@ module ParseBinaryStructure (
 	BinaryStructure(..),
 	BinaryStructureItem,
 	bytesOf,
+	sizeOf,
 	valueOf,
 	parseBinaryStructure
 ) where
@@ -23,6 +24,7 @@ BitmapFileHeader
 2: 0
 2: 0
 4: offset
+
 4: 40
 4: bitmapWidth
 4: bitmapHeight
@@ -34,22 +36,29 @@ BitmapFileHeader
 4: verticalDensity
 4: colorIndexNumber
 4: neededIndexNumber
+
 4[colorIndexNumber]: colors
+1[3]: image
 
 |]
 
 data BinaryStructureItem = BinaryStructureItem {
 	binaryStructureItemBytes :: Int,
+	binaryStructureItemListSize :: Maybe (Either Int String),
 	binaryStructureItemValue :: Either Int String
  } deriving Show
 
--- bytesOf :: (Int, Either Int String) -> Int
+bytesOf :: BinaryStructureItem -> Int
 bytesOf = binaryStructureItemBytes
+
+sizeOf :: BinaryStructureItem -> Maybe (Either Int String)
+sizeOf = binaryStructureItemListSize
 
 -- valueOf :: (Int, Either Int String) -> Either Int String
 valueOf = binaryStructureItemValue
 
-binaryStructureItem :: Int -> Either Int String -> BinaryStructureItem
+binaryStructureItem ::
+	Int -> Maybe (Either Int String) -> Either Int String -> BinaryStructureItem
 binaryStructureItem = BinaryStructureItem
 
 {-
@@ -91,7 +100,10 @@ name :: String
 	= [A-Z][a-zA-Z0-9]*	{ $1 : $2 }
 
 dat :: BinaryStructureItem
-	= num ':' spaces val '\n'	{ binaryStructureItem $1 $3 }
+	= num size? ':' spaces val emptyLines	{ binaryStructureItem $1 $2 $4 }
+
+size :: Either Int String
+	= '[' val ']'		{ $1 }
 
 val :: Either Int String
 	= num			{ Left $1 }

@@ -66,6 +66,9 @@ BitmapFileHeader
 4: neededIndexNumber
 4[colorIndexNumber]: colors
 
+bitPerPic/8[imageDataSize*8/bitPerPic]: colors
+bitPerPic b[imageDataSize*8/bitPerPic]: colors
+
 |]
 
 とすることにしよう。
@@ -79,3 +82,13 @@ BitmapFileHeader
 |]
 
 という記述から始めようか。
+
+また、行く行くは bytes ではなく bits でも指定できるようにしたい。
+
+4b: some
+4b: other
+1: someOther
+
+といった感じに。
+
+あと空行を許すようにしよう。

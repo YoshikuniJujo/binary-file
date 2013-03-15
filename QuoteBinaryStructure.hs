@@ -56,20 +56,19 @@ mkBody bsn body cs = do
 	mkDef np item cs'
 	    | Left val <- valueOf item = do
 		cs'' <- newName "cs"
-		let t = (appsE
-			[varE 'drop, litE $ integerL $ fromIntegral n, varE cs'])
+		let t = dropE n $ varE cs'
 		let p = val `equal` appE (varE 'readInt) (takeE n $ varE cs')
 		let e = [e| error "bad value" |]
 		d <- valD (varP cs'') (normalB $ condE p t e) []
 		return ([d], cs'')
-	    | Right var <- valueOf item = do
+	    | Right var <- valueOf item, Nothing <- sizeOf item = do
 		cs'' <- newName "cs"
 		def <- valD (varP $ fromJust $ lookup var np)
-			(normalB $ appE (varE 'readInt) $ appsE
-			[varE 'take, litE $ integerL $ fromIntegral n, varE cs']) []
-		next <- valD (varP cs'') (normalB $ appsE
-			[varE 'drop, litE $ integerL $ fromIntegral n, varE cs']) []
+			(normalB $ appE (varE 'readInt) $ takeE n $ varE cs') []
+		next <- valD (varP cs'') (normalB $ dropE n $ varE cs') []
 		return ([def, next], cs'')
+--	    | Right var <- valueOf item, Just (Left val) <- sizeOf item = do
+--		css'' <- newName "cs"
 	    where
 	    n = bytesOf item
 
@@ -78,6 +77,9 @@ equal x y = infixE (Just $ litE $ integerL $ fromIntegral x) (varE '(==)) (Just 
 
 takeE :: Int -> ExpQ -> ExpQ
 takeE n xs = appsE [varE 'take, litE $ integerL $ fromIntegral n, xs]
+
+dropE :: Int -> ExpQ -> ExpQ
+dropE n xs = appsE [varE 'drop, litE $ integerL $ fromIntegral n, xs]
 
 readInt :: String -> Int
 readInt "" = 0
@@ -92,11 +94,12 @@ gather s (x : xs) f = do
 
 mkData :: String -> [BinaryStructureItem] -> DecQ
 mkData bsn body =
---	sequence [dataD (cxt []) name [] [con] [''Show]]
 	dataD (cxt []) name [] [con] [''Show]
 	where
 	name = mkName bsn
-	con = recC (mkName bsn) $ map toVST names
+	con = recC (mkName bsn) vsts
+
+	vsts = map toVST names
 	names = rights $ map valueOf body
 	toVST n = varStrictType (mkName n) $
 		strictType notStrict $ conT ''Int
