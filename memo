@@ -1,0 +1,43 @@
+binary file の reader と writer を作ろう。
+template Haskell と quasi quotation を活用することにする。
+まずは簡単な例から。
+
+data 構造と reader を自動生成するようにする。
+つまり、
+[binary|
+
+BitmapFileHeader
+
+2: 19778
+4: fileSize
+2: 0
+2: 0
+4: offset
+
+|]
+
+と書くと、
+
+data BitmapFileHeader = BitmapFileHeader {
+	fileSize :: Int,
+	offset :: Int
+ }
+
+という構造と、
+
+readBitmapFileHeader :: String -> BitmapFileHeader
+readBitmapFileHeader cs = let
+	cs' = if 19778 == readInt $ take 2 cs then drop 2 cs else error "bad"
+	fs = readInt $ take 4 cs'
+	cs'' = drop 4 cs'
+	cs''' = if 0 == readInt $ take 2 cs'' then drop 2 cs'' else error "bad"
+	cs'''' = if 0 == readInt $ take 2 cs''' then drop 2 cs''' else error "bad"
+	os = readInt $ take 4 cs'''' in
+	BitmapFileHeader {
+		fileSize = fs,
+		offset = os
+	 }
+
+という reader を生成するようにしたい。
+
+まずは data 構造からだ。
