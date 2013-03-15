@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes, FlexibleContexts #-}
 
-module ParseBitmapStructure (
+module ParseBinaryStructure (
 	BitmapStructure(..),
 	parseBitmapStructure
 ) where

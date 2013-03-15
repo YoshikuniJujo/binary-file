@@ -10,7 +10,7 @@ import Language.Haskell.TH
 import Language.Haskell.TH.Quote
 import Data.Traversable
 
-import ParseBitmapStructure
+import ParseBinaryStructure
 
 main = do
 	runQ (mkHaskellTree $ parseBitmapStructure "BitmapFileHeader") >>= print
@@ -27,7 +27,7 @@ mkHaskellTree :: BitmapStructure -> DecsQ
 mkHaskellTree BitmapStructure{
 	bitmapStructureName = bsn,
 	bitmapStructureBody = body } =
-	sequence [dataD (cxt []) name [] [con] []]
+	sequence [dataD (cxt []) name [] [con] [''Show]]
 	where
 	name = mkName bsn
 	con = normalC (mkName bsn) []

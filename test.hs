@@ -4,7 +4,7 @@ import QuoteBitmapStructure
 
 [binary|
 
-BitmapFileHeadder
+BitmapFileHeader
 
 2: 19778
 4: fileSize
@@ -13,3 +13,6 @@ BitmapFileHeadder
 4: offset
 
 |]
+
+main = do
+	print BitmapFileHeader
