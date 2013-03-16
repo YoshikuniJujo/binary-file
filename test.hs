@@ -3,6 +3,7 @@
 import QuoteBinaryStructure
 import System.Environment
 import Data.Bits
+import System.IO
 
 [binary|
 
@@ -24,7 +25,7 @@ BitmapFileHeader
 4: verticalDensity
 4: colorIndexNumber
 4: neededIndexNumber
-4[16]: colors
+4[colorIndexNumber]: colors
 4: image0
 
 |]
@@ -33,7 +34,7 @@ BitmapFileHeader
 
 main = do
 	[fn] <- getArgs
-	cnt <- readFile fn
+	cnt <- readBinaryFile fn
 --	print $ length cnt
 	print $ readBitmapFileHeader cnt
 
@@ -43,3 +44,6 @@ toRGB rgb = let
 	g = shiftR rgb 8 .&. 0xff
 	r = shiftR rgb 16 in
 	(r, g, b)
+
+readBinaryFile :: FilePath -> IO String
+readBinaryFile path = openBinaryFile path ReadMode >>= hGetContents
