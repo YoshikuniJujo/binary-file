@@ -7,11 +7,14 @@ module ParseBinaryStructure (
 	bytesOf,
 	sizeOf,
 	valueOf,
-	parseBinaryStructure
+	parseBinaryStructure,
+	readInt
 ) where
 
 import Text.Peggy
 import Here
+import Control.Arrow
+import Data.Char
 
 main :: IO ()
 main = do
@@ -50,10 +53,22 @@ data Expression
 	| Number Int
 	deriving Show
 
+data ConstantValue
+	= ConstantInt Int
+	| ConstantString String
+	deriving Show
+
+constantInt (ConstantInt v) = v
+constantInt (ConstantString v) = readInt v
+
+data VariableValue
+	= VariableValue { variableValue :: String }
+	deriving Show
+
 data BinaryStructureItem = BinaryStructureItem {
 	binaryStructureItemBytes :: Expression,
 	binaryStructureItemListSize :: Maybe Expression, -- (Either Int String),
-	binaryStructureItemValue :: Either Int String
+	binaryStructureItemValue :: Either ConstantValue VariableValue -- Int String
  } deriving Show
 
 bytesOf :: BinaryStructureItem -> Expression
@@ -62,11 +77,11 @@ bytesOf = binaryStructureItemBytes
 sizeOf :: BinaryStructureItem -> Maybe Expression
 sizeOf = binaryStructureItemListSize
 
--- valueOf :: (Int, Either Int String) -> Either Int String
-valueOf = binaryStructureItemValue
+valueOf :: BinaryStructureItem -> Either Int String
+valueOf = (constantInt +++ variableValue) . binaryStructureItemValue
 
-binaryStructureItem ::
-	Expression -> Maybe Expression -> Either Int String -> BinaryStructureItem
+binaryStructureItem :: Expression -> Maybe Expression ->
+	Either ConstantValue VariableValue -> BinaryStructureItem
 binaryStructureItem = BinaryStructureItem
 
 {-
@@ -91,6 +106,10 @@ parseBinaryStructure :: String -> BinaryStructure
 parseBinaryStructure src = case parseString top "<code>" src of
 	Right bs -> bs
 	Left ps -> error $ show ps
+
+readInt :: String -> Int
+readInt "" = 0
+readInt (c : cs) = ord c + 2 ^ 8 * readInt cs
 
 [peggy|
 
@@ -120,9 +139,13 @@ expr :: Expression
 size :: Expression
 	= '[' expr ']'
 
-val :: Either Int String
-	= num			{ Left $1 }
-	/ var			{ Right $1 }
+val :: Either ConstantValue VariableValue
+	= num			{ Left $ ConstantInt $1 }
+	/ var			{ Right $ VariableValue $1 }
+	/ stringL		{ Left $ ConstantString $1 }
+
+stringL :: String
+	= '\"' [^\"]* '\"'
 
 var :: String
 	= [a-z][a-zA-Z0-9]*	{ $1 : $2 }

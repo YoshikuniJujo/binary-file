@@ -14,6 +14,7 @@ import Control.Applicative
 import Control.Arrow
 import Data.Maybe
 import Data.Char
+import Data.Bits
 
 import ParseBinaryStructure
 
@@ -34,7 +35,35 @@ mkHaskellTree BinaryStructure{
 	binaryStructureBody = body } = do
 		d <- mkData bsn body
 		r <- mkReader bsn body
-		return [d, r]
+		w <- mkWriter bsn body
+		return [d, r, w]
+
+mkWriter :: String -> [BinaryStructureItem] -> DecQ
+mkWriter bsn body = do
+	bs <- newName "bs"
+	let run = appE (varE 'concat) $ listE $ map
+		(\bsi -> writeField bs (bytesOf bsi) (sizeOf bsi) (valueOf bsi))
+		body
+	funD (mkName $ "write" ++ bsn)
+		[clause [varP bs] (normalB run) []]
+	where
+--	body = normalB $ litE $ stringL "yet"
+
+writeField :: Name -> Expression -> Maybe Expression -> Either Int String -> ExpQ
+writeField bs size Nothing (Left n) =
+	appsE [varE 'intToBin, expression bs size, litE $ integerL $ fromIntegral n]
+writeField bs size Nothing (Right v) =
+	appsE [varE 'intToBin, expression bs size, getField bs v]
+writeField bs size (Just n) (Right v) = appsE [varE 'concatMap,
+	appE (varE 'intToBin) (expression bs size), getField bs v]
+
+intToBin :: Int -> Int -> String
+intToBin n x = intToBinGen (fromIntegral n) (fromIntegral x)
+
+intToBinGen :: Integer -> Integer -> String
+intToBinGen 0 _ = ""
+intToBinGen n x = chr (fromIntegral $ x `mod` 256) :
+	intToBinGen (n - 1) (x `div` 256)
 
 mkReader :: String -> [BinaryStructureItem] -> DecQ
 mkReader bsn body = do
@@ -102,6 +131,9 @@ expression _ (Number n) = litE $ integerL $ fromIntegral n
 expression ret (Division x y) = divE (expression ret x) (expression ret y)
 expression ret (Multiple x y) = multiE' (expression ret x) (expression ret y)
 
+getField :: Name -> String -> ExpQ
+getField bs v = appE (varE $ mkName v) (varE bs)
+
 multiE :: Int -> ExpQ -> ExpQ
 multiE x y = infixE (Just $ litE $ integerL $ fromIntegral x) (varE '(*)) (Just y)
 
@@ -125,10 +157,6 @@ dropE n xs = appsE [varE 'drop, litE $ integerL $ fromIntegral n, xs]
 
 dropE' :: ExpQ -> ExpQ -> ExpQ
 dropE' n xs = appsE [varE 'drop, n, xs]
-
-readInt :: String -> Int
-readInt "" = 0
-readInt (c : cs) = ord c + 2 ^ 8 * readInt cs
 
 gather :: Monad m => s -> [a] -> (a -> s -> m ([b], s)) -> m [b]
 gather s [] f = return []
