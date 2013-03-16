@@ -60,28 +60,28 @@ mkBody bsn body cs ret = do
 	mkDef np item cs'
 	    | Left val <- valueOf item = do
 		cs'' <- newName "cs"
-		let t = dropE n $ varE cs'
-		let p = val `equal` appE (varE 'readInt) (takeE n $ varE cs')
+		let t = dropE' n $ varE cs'
+		let p = val `equal` appE (varE 'readInt) (takeE' n $ varE cs')
 		let e = [e| error "bad value" |]
 		d <- valD (varP cs'') (normalB $ condE p t e) []
 		return ([d], cs'')
 	    | Right var <- valueOf item, Nothing <- sizeOf item = do
 		cs'' <- newName "cs"
 		def <- valD (varP $ fromJust $ lookup var np)
-			(normalB $ appE (varE 'readInt) $ takeE n $ varE cs') []
-		next <- valD (varP cs'') (normalB $ dropE n $ varE cs') []
+			(normalB $ appE (varE 'readInt) $ takeE' n $ varE cs') []
+		next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
 		return ([def, next], cs'')
 	    | Right var <- valueOf item, Just expr <- sizeOf item = do
 		cs'' <- newName "cs"
 		def <- valD (varP $ fromJust $ lookup var np)
 			(normalB $ -- listE $
 				appsE [varE 'map, varE 'readInt,
-				appsE [varE 'devideN, litE $ integerL $
-					fromIntegral n,
-			takeE' (multiE n $ expression ret expr) $ varE cs']]) []
+				appsE [varE 'devideN, n,
+--					litE $ integerL $ fromIntegral n,
+			takeE' (multiE' n $ expression ret expr) $ varE cs']]) []
 --		next <- valD (varP cs'') (normalB $ dropE n $ varE cs') []
 		next <- valD (varP cs'') (normalB $
-			dropE' (multiE n $ expression ret expr) $ varE cs') []
+			dropE' (multiE' n $ expression ret expr) $ varE cs') []
 --			dropE' (multiE 1 $ expression ret expr) $ varE cs') []
 		return ([def, next], cs'')
 {-
@@ -94,17 +94,22 @@ mkBody bsn body cs ret = do
 		return ([], cs'')
 -}
 	    where
-	    n = bytesOf item
+	    n = expression ret $ bytesOf item
 
 expression :: Name -> Expression -> ExpQ
 expression ret (Variable v) = appE (varE $ mkName v) (varE ret)
 expression _ (Number n) = litE $ integerL $ fromIntegral n
+expression ret (Division x y) = divE (expression ret x) (expression ret y)
+expression ret (Multiple x y) = multiE' (expression ret x) (expression ret y)
 
 multiE :: Int -> ExpQ -> ExpQ
 multiE x y = infixE (Just $ litE $ integerL $ fromIntegral x) (varE '(*)) (Just y)
 
 multiE' :: ExpQ -> ExpQ -> ExpQ
 multiE' x y = infixE (Just x) (varE '(*)) (Just y)
+
+divE :: ExpQ -> ExpQ -> ExpQ
+divE x y = infixE (Just x) (varE 'div) (Just y)
 
 equal :: Int -> ExpQ -> ExpQ
 equal x y = infixE (Just $ litE $ integerL $ fromIntegral x) (varE '(==)) (Just y)

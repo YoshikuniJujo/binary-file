@@ -51,12 +51,12 @@ data Expression
 	deriving Show
 
 data BinaryStructureItem = BinaryStructureItem {
-	binaryStructureItemBytes :: Int,
+	binaryStructureItemBytes :: Expression,
 	binaryStructureItemListSize :: Maybe Expression, -- (Either Int String),
 	binaryStructureItemValue :: Either Int String
  } deriving Show
 
-bytesOf :: BinaryStructureItem -> Int
+bytesOf :: BinaryStructureItem -> Expression
 bytesOf = binaryStructureItemBytes
 
 sizeOf :: BinaryStructureItem -> Maybe Expression
@@ -66,7 +66,7 @@ sizeOf = binaryStructureItemListSize
 valueOf = binaryStructureItemValue
 
 binaryStructureItem ::
-	Int -> Maybe Expression -> Either Int String -> BinaryStructureItem
+	Expression -> Maybe Expression -> Either Int String -> BinaryStructureItem
 binaryStructureItem = BinaryStructureItem
 
 {-
@@ -108,7 +108,7 @@ name :: String
 	= [A-Z][a-zA-Z0-9]*	{ $1 : $2 }
 
 dat :: BinaryStructureItem
-	= num size? ':' spaces val emptyLines
+	= expr size? ':' spaces val emptyLines
 				{ binaryStructureItem $1 $2 $4 }
 
 expr :: Expression

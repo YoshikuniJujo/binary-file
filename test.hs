@@ -7,7 +7,7 @@ import System.IO
 
 [binary|
 
-BitmapFileHeader
+Bitmap
 
 2: 19778
 4: fileSize
@@ -26,7 +26,7 @@ BitmapFileHeader
 4: colorIndexNumber
 4: neededIndexNumber
 4[colorIndexNumber]: colors
-4: image0
+bitPerPic/8[imageDataSize*8/bitPerPic]: image
 
 |]
 
@@ -36,7 +36,12 @@ main = do
 	[fn] <- getArgs
 	cnt <- readBinaryFile fn
 --	print $ length cnt
-	print $ readBitmapFileHeader cnt
+	print $ readBitmap cnt
+
+test :: IO Bitmap
+test = do
+	cnt <- readBinaryFile "test.bmp"
+	return $ readBitmap cnt
 
 toRGB :: Int -> (Int, Int, Int)
 toRGB rgb = let
