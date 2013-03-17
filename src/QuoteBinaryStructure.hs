@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, TupleSections #-}
+{-# LANGUAGE TemplateHaskell, TupleSections, PatternGuards #-}
 
 module QuoteBinaryStructure (
 	binary
