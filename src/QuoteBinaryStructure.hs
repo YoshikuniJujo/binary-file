@@ -46,8 +46,6 @@ mkWriter bsn body = do
 		body
 	funD (mkName $ "write" ++ bsn)
 		[clause [varP bs] (normalB run) []]
-	where
---	body = normalB $ litE $ stringL "yet"
 
 writeField :: Name -> Expression -> Type -> Maybe Expression -> Either Int String -> ExpQ
 writeField bs size Int Nothing (Left n) =
@@ -79,7 +77,6 @@ mkLetRec n f = letE [valD (varP n) (normalB $ f n) []] $ varE n
 mkBody :: String -> [BinaryStructureItem] -> Name -> Name -> ExpQ
 mkBody bsn body cs ret = do
 	namePairs <- for names $ \n -> return . (n ,) =<< newName "tmp"
---	let defs = map mkValD $ map snd namePairs
 	defs <- gather cs body $ mkDef namePairs
 	letE (map return defs) $ recConE (mkName bsn) (map toPair2 namePairs)
 	where
@@ -110,25 +107,13 @@ mkBody bsn body cs ret = do
 	    | Right var <- valueOf item, Just expr <- sizeOf item = do
 		cs'' <- newName "cs"
 		def <- valD (varP $ fromJust $ lookup var np)
-			(normalB $ -- listE $
+			(normalB $
 				appsE [varE 'map, varE 'readInt,
 				appsE [varE 'devideN, n,
---					litE $ integerL $ fromIntegral n,
 			takeE' (multiE' n $ expression ret expr) $ varE cs']]) []
---		next <- valD (varP cs'') (normalB $ dropE n $ varE cs') []
 		next <- valD (varP cs'') (normalB $
 			dropE' (multiE' n $ expression ret expr) $ varE cs') []
---			dropE' (multiE 1 $ expression ret expr) $ varE cs') []
 		return ([def, next], cs'')
-{-
-	    | Right var <- valueOf item, Just expr <- sizeOf item = do
-		cs'' <- newName "cs"
---		def <- 
---		next <- valD (varP cs'') (normalB $
---			dropE' (multiE n $ expression ret expr) $ varE cs') []
---		return ([next], cs'')
-		return ([], cs'')
--}
 	    where
 	    n = expression ret $ bytesOf item
 

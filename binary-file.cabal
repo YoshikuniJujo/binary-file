@@ -2,7 +2,7 @@ build-type:	Simple
 cabal-version:	>= 1.8
 
 name:		binary-file
-version:	0.1
+version:	0.2
 stability:	experimental
 author:		Yoshikuni Jujo <PAF01143@nifty.ne.jp>
 maintainer:	Yoshikuni Jujo <PAF01143@nifty.ne.jp>
@@ -13,8 +13,11 @@ license-file:	LICENSE
 category:	File
 synopsis:	read/write binary file
 description:
-    > {-# LANGUAGE QuasiQuotes #-}
-    >
+
+    > runghc -XQuasiQuotes exam.hs some.bmp out.bmp
+    .
+    exam.hs:
+    .
     > import Binary
     > import System.Environment
     >
@@ -57,6 +60,7 @@ description:
     > 10<String>: authorSecond
     > 
     > |]
+    .
 
 library
     hs-source-dirs:	src
