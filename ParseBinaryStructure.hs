@@ -4,7 +4,9 @@ module ParseBinaryStructure (
 	BinaryStructure(..),
 	BinaryStructureItem,
 	Expression(..),
+	Type(..),
 	bytesOf,
+	typeOf,
 	sizeOf,
 	valueOf,
 	parseBinaryStructure,
@@ -43,6 +45,7 @@ BitmapFileHeader
 
 4[colorIndexNumber]: colors
 1[3]: image
+10<String>: author
 
 |]
 
@@ -61,12 +64,15 @@ data ConstantValue
 constantInt (ConstantInt v) = v
 constantInt (ConstantString v) = readInt v
 
+data Type = String | Int deriving Show
+
 data VariableValue
 	= VariableValue { variableValue :: String }
 	deriving Show
 
 data BinaryStructureItem = BinaryStructureItem {
 	binaryStructureItemBytes :: Expression,
+	binaryStructureItemType :: Type,
 	binaryStructureItemListSize :: Maybe Expression, -- (Either Int String),
 	binaryStructureItemValue :: Either ConstantValue VariableValue -- Int String
  } deriving Show
@@ -74,13 +80,16 @@ data BinaryStructureItem = BinaryStructureItem {
 bytesOf :: BinaryStructureItem -> Expression
 bytesOf = binaryStructureItemBytes
 
+typeOf :: BinaryStructureItem -> Type
+typeOf = binaryStructureItemType
+
 sizeOf :: BinaryStructureItem -> Maybe Expression
 sizeOf = binaryStructureItemListSize
 
 valueOf :: BinaryStructureItem -> Either Int String
 valueOf = (constantInt +++ variableValue) . binaryStructureItemValue
 
-binaryStructureItem :: Expression -> Maybe Expression ->
+binaryStructureItem :: Expression -> Type -> Maybe Expression ->
 	Either ConstantValue VariableValue -> BinaryStructureItem
 binaryStructureItem = BinaryStructureItem
 
@@ -127,8 +136,11 @@ name :: String
 	= [A-Z][a-zA-Z0-9]*	{ $1 : $2 }
 
 dat :: BinaryStructureItem
-	= expr size? ':' spaces val emptyLines
-				{ binaryStructureItem $1 $2 $4 }
+	= expr type size? ':' spaces val emptyLines
+				{ binaryStructureItem $1 $2 $3 $5 }
+type :: Type
+	= "<String>"		{ String }
+	/ "<Int>"?		{ Int }
 
 expr :: Expression
 	= expr '*' expr		{ Multiple $1 $2 }

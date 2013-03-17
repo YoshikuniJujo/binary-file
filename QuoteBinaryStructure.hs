@@ -6,7 +6,7 @@ module QuoteBinaryStructure (
 
 import Prelude hiding (sequence)
 
-import Language.Haskell.TH
+import Language.Haskell.TH hiding (Type)
 import Language.Haskell.TH.Quote
 import Data.Traversable hiding (mapM)
 import Data.Either
@@ -42,20 +42,21 @@ mkWriter :: String -> [BinaryStructureItem] -> DecQ
 mkWriter bsn body = do
 	bs <- newName "bs"
 	let run = appE (varE 'concat) $ listE $ map
-		(\bsi -> writeField bs (bytesOf bsi) (sizeOf bsi) (valueOf bsi))
+		(\bsi -> writeField bs (bytesOf bsi) (typeOf bsi) (sizeOf bsi) (valueOf bsi))
 		body
 	funD (mkName $ "write" ++ bsn)
 		[clause [varP bs] (normalB run) []]
 	where
 --	body = normalB $ litE $ stringL "yet"
 
-writeField :: Name -> Expression -> Maybe Expression -> Either Int String -> ExpQ
-writeField bs size Nothing (Left n) =
+writeField :: Name -> Expression -> Type -> Maybe Expression -> Either Int String -> ExpQ
+writeField bs size Int Nothing (Left n) =
 	appsE [varE 'intToBin, expression bs size, litE $ integerL $ fromIntegral n]
-writeField bs size Nothing (Right v) =
+writeField bs size Int Nothing (Right v) =
 	appsE [varE 'intToBin, expression bs size, getField bs v]
-writeField bs size (Just n) (Right v) = appsE [varE 'concatMap,
+writeField bs size Int (Just n) (Right v) = appsE [varE 'concatMap,
 	appE (varE 'intToBin) (expression bs size), getField bs v]
+writeField bs size String Nothing (Right v) = getField bs v
 
 intToBin :: Int -> Int -> String
 intToBin n x = intToBinGen (fromIntegral n) (fromIntegral x)
@@ -94,10 +95,16 @@ mkBody bsn body cs ret = do
 		let e = [e| error "bad value" |]
 		d <- valD (varP cs'') (normalB $ condE p t e) []
 		return ([d], cs'')
-	    | Right var <- valueOf item, Nothing <- sizeOf item = do
+	    | Right var <- valueOf item, Nothing <- sizeOf item, Int <- typeOf item = do
 		cs'' <- newName "cs"
 		def <- valD (varP $ fromJust $ lookup var np)
 			(normalB $ appE (varE 'readInt) $ takeE' n $ varE cs') []
+		next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
+		return ([def, next], cs'')
+	    | Right var <- valueOf item, Nothing <- sizeOf item = do
+		cs'' <- newName "cs"
+		def <- valD (varP $ fromJust $ lookup var np)
+			(normalB $ takeE' n $ varE cs') []
 		next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
 		return ([def, next], cs'')
 	    | Right var <- valueOf item, Just expr <- sizeOf item = do
@@ -173,15 +180,17 @@ mkData bsn body =
 	con = recC (mkName bsn) vsts
 
 	vsts = flip map (filter isRight body) $ \item ->
-		case sizeOf item of
-			Nothing -> varStrictType
---			_ -> varStrictType
+		case (sizeOf item, typeOf item) of
+			(Nothing, Int) -> varStrictType
 				(mkName $ fromRight $ valueOf item) $
 					strictType notStrict $ conT ''Int
-			_ -> varStrictType
+			(_, Int) -> varStrictType
 				(mkName $ fromRight $ valueOf item) $
 					strictType notStrict $
 						appT listT $ conT ''Int
+			(Nothing, _) -> varStrictType
+				(mkName $ fromRight $ valueOf item) $
+					strictType notStrict $ conT ''String
 
 	isRight item
 		| Right _ <- valueOf item = True

@@ -27,6 +27,8 @@ Bitmap
 4: importantColors
 4[numberOfColors]: colors
 bitsPerPixel/8[imageSize*8/bitsPerPixel]: image
+9<String>: authorFirst
+4<String>: authorSecond
 
 |]
 
@@ -35,8 +37,10 @@ main = do
 	cnt <- readBinaryFile fn
 	let bmp = readBitmap cnt
 	print $ colors $ readBitmap cnt
-	let out = writeBitmap bmp
-	print $ length out
+--	print $ length out
+	print $ authorFirst bmp
+	print $ authorSecond bmp
+	let out = writeBitmap bmp { authorFirst = "Yoshikuni", authorSecond = "Jujo" }
 	writeBinaryFile "out.bmp" out
 
 out :: IO Bitmap
