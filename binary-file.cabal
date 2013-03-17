@@ -1,7 +1,7 @@
 build-type:	Simple
 cabal-version:	>= 1.8
 
-name:		binary
+name:		binary-file
 version:	0.1
 stability:	experimental
 author:		Yoshikuni Jujo <PAF01143@nifty.ne.jp>
