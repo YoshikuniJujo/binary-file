@@ -35,11 +35,18 @@ main = do
 	cnt <- readBinaryFile fn
 	let bmp = readBitmap cnt
 	print $ colors $ readBitmap cnt
-	writeBinaryFile "out.bmp" $ writeBitmap bmp
+	let out = writeBitmap bmp
+	print $ length out
+	writeBinaryFile "out.bmp" out
+
+out :: IO Bitmap
+out = do
+	cnt <- readBinaryFile "out.bmp" -- "test.bmp"
+	return $ readBitmap cnt
 
 test :: IO Bitmap
 test = do
-	cnt <- readBinaryFile "out.bmp" -- "test.bmp"
+	cnt <- readBinaryFile "test.bmp"
 	return $ readBitmap cnt
 
 toRGB :: Int -> (Int, Int, Int)
@@ -53,4 +60,7 @@ readBinaryFile :: FilePath -> IO String
 readBinaryFile path = openBinaryFile path ReadMode >>= hGetContents
 
 writeBinaryFile :: FilePath -> String -> IO ()
-writeBinaryFile path str = openBinaryFile path WriteMode >>= flip hPutStr str
+writeBinaryFile path str = do
+	h <- openBinaryFile path WriteMode
+	hPutStr h str
+	hClose h
