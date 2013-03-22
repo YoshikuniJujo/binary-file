@@ -1,4 +1,9 @@
-{-# LANGUAGE TemplateHaskell, TupleSections, PatternGuards #-}
+{-# LANGUAGE
+	TemplateHaskell,
+	TupleSections,
+	PatternGuards,
+	TypeSynonymInstances,
+	FlexibleInstances #-}
 
 module QuoteBinaryStructure (
 	binary
@@ -18,6 +23,8 @@ import Data.Bits
 
 import ParseBinaryStructure
 
+import qualified Data.ByteString as BS
+
 main = do
 	runQ (mkHaskellTree $ parseBinaryStructure "BinaryFileHeader") >>= print
 
@@ -34,6 +41,7 @@ mkHaskellTree BinaryStructure{
 	binaryStructureName = bsn,
 	binaryStructureBody = body } = do
 		d <- mkData bsn body
+--		dbg <- debugReadType
 		r <- mkReader bsn body
 		w <- mkWriter bsn body
 		return [d, r, w]
@@ -41,20 +49,21 @@ mkHaskellTree BinaryStructure{
 mkWriter :: String -> [BinaryStructureItem] -> DecQ
 mkWriter bsn body = do
 	bs <- newName "bs"
-	let run = appE (varE 'concat) $ listE $ map
+	let run = appE (varE 'cc) $ listE $ map
 		(\bsi -> writeField bs (bytesOf bsi) (typeOf bsi) (sizeOf bsi) (valueOf bsi))
 		body
 	funD (mkName $ "write" ++ bsn)
 		[clause [varP bs] (normalB run) []]
 
-writeField :: Name -> Expression -> Type -> Maybe Expression -> Either Int String -> ExpQ
+writeField :: Name -> Expression -> Type -> Maybe Expression ->
+	Either Int String -> ExpQ
 writeField bs size Int Nothing (Left n) =
-	appsE [varE 'intToBin, expression bs size, litE $ integerL $ fromIntegral n]
+	appsE [varE 'fi, expression bs size, litE $ integerL $ fromIntegral n]
 writeField bs size Int Nothing (Right v) =
-	appsE [varE 'intToBin, expression bs size, getField bs v]
-writeField bs size Int (Just n) (Right v) = appsE [varE 'concatMap,
-	appE (varE 'intToBin) (expression bs size), getField bs v]
-writeField bs size String Nothing (Right v) = getField bs v
+	appsE [varE 'fi, expression bs size, getField bs v]
+writeField bs size Int (Just n) (Right v) = appE (varE 'cc) $ appsE [varE 'map,
+	appE (varE 'fi) (expression bs size), getField bs v]
+writeField bs size String Nothing (Right v) = appE (varE 'fs) $ getField bs v
 
 intToBin :: Int -> Int -> String
 intToBin n x = intToBinGen (fromIntegral n) (fromIntegral x)
@@ -63,6 +72,11 @@ intToBinGen :: Integer -> Integer -> String
 intToBinGen 0 _ = ""
 intToBinGen n x = chr (fromIntegral $ x `mod` 256) :
 	intToBinGen (n - 1) (x `div` 256)
+
+-- readerType :: String -> DecQ
+-- readerType = sigD (mkName $ "read" ++ bsn) [t| Str a => a ->
+
+-- debugReadType :: DecQ = [d| readBitmap :: Str a => a -> Bitmap |]
 
 mkReader :: String -> [BinaryStructureItem] -> DecQ
 mkReader bsn body = do
@@ -88,14 +102,14 @@ mkBody bsn body cs ret = do
 	    | Left val <- valueOf item = do
 		cs'' <- newName "cs"
 		let t = dropE' n $ varE cs'
-		let p = val `equal` appE (varE 'readInt) (takeE' n $ varE cs')
+		let p = val `equal` appE (varE 'ti) (takeE' n $ varE cs')
 		let e = [e| error "bad value" |]
 		d <- valD (varP cs'') (normalB $ condE p t e) []
 		return ([d], cs'')
 	    | Right var <- valueOf item, Nothing <- sizeOf item, Int <- typeOf item = do
 		cs'' <- newName "cs"
 		def <- valD (varP $ fromJust $ lookup var np)
-			(normalB $ appE (varE 'readInt) $ takeE' n $ varE cs') []
+			(normalB $ appE (varE 'ti) $ takeE' n $ varE cs') []
 		next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
 		return ([def, next], cs'')
 	    | Right var <- valueOf item, Nothing <- sizeOf item = do
@@ -108,7 +122,7 @@ mkBody bsn body cs ret = do
 		cs'' <- newName "cs"
 		def <- valD (varP $ fromJust $ lookup var np)
 			(normalB $
-				appsE [varE 'map, varE 'readInt,
+				appsE [varE 'map, varE 'ti,
 				appsE [varE 'devideN, n,
 			takeE' (multiE' n $ expression ret expr) $ varE cs']]) []
 		next <- valD (varP cs'') (normalB $
@@ -138,17 +152,17 @@ divE x y = infixE (Just x) (varE 'div) (Just y)
 equal :: Int -> ExpQ -> ExpQ
 equal x y = infixE (Just $ litE $ integerL $ fromIntegral x) (varE '(==)) (Just y)
 
-takeE :: Int -> ExpQ -> ExpQ
-takeE n xs = appsE [varE 'take, litE $ integerL $ fromIntegral n, xs]
+-- takeE :: Int -> ExpQ -> ExpQ
+-- takeE n xs = appsE [varE 'tk, litE $ integerL $ fromIntegral n, xs]
 
 takeE' :: ExpQ -> ExpQ -> ExpQ
-takeE' n xs = appsE [varE 'take, n, xs]
+takeE' n xs = appE (varE 'ts) $ appsE [varE 'tk, n, xs]
 
-dropE :: Int -> ExpQ -> ExpQ
-dropE n xs = appsE [varE 'drop, litE $ integerL $ fromIntegral n, xs]
+-- dropE :: Int -> ExpQ -> ExpQ
+-- dropE n xs = appsE [varE 'dp, litE $ integerL $ fromIntegral n, xs]
 
 dropE' :: ExpQ -> ExpQ -> ExpQ
-dropE' n xs = appsE [varE 'drop, n, xs]
+dropE' n xs = appsE [varE 'dp, n, xs]
 
 gather :: Monad m => s -> [a] -> (a -> s -> m ([b], s)) -> m [b]
 gather s [] f = return []
@@ -186,3 +200,30 @@ fromRight = either (error "not Right") id
 devideN :: Int -> [a] -> [[a]]
 devideN _ [] = []
 devideN n xs = take n xs : devideN n (drop n xs)
+
+class Str a where
+	tk :: Int -> a -> a
+	dp :: Int -> a -> a
+	ts :: a -> String
+	fs :: String -> a
+	ti :: a -> Int
+	fi :: Int -> Int -> a
+	cc :: [a] -> a
+
+instance Str String where
+	tk = take
+	dp = drop
+	ts = id
+	fs = id
+	ti = readInt
+	fi = intToBin
+	cc = concat
+
+instance Str BS.ByteString where
+	tk = BS.take
+	dp = BS.drop
+	ts = map (chr . fromIntegral) . BS.unpack
+	fs = BS.pack . map (fromIntegral . ord)
+	ti = readInt . map (chr . fromIntegral) . BS.unpack
+	fi n = BS.pack . map (fromIntegral . ord) . intToBin n
+	cc = BS.concat

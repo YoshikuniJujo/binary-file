@@ -106,3 +106,17 @@ ghc の readFile あるいはその下の getContents の制限がある。
 
 次やるとしたら、読み込みの型を指定すること、かな。
 まあ、どの程度必要かはわからないけど、あれば便利であることは確かだ。
+
+2013.03.22 Fri.
+
+うまく作れば、読み込みの型を String と ByteString の両方に対応させることは可能だ。
+read のほうは、take と drop と、それと toString と readInt あたりを class Str の
+関数にすればいいはずだ。
+
+段階的に作っていこう。
+まずは、
+class Str a where
+	tk :: Int -> a -> a
+	dp :: Int -> a -> a
+	ts :: a -> String
+	ti :: a -> Int
