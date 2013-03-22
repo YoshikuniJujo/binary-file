@@ -44,7 +44,7 @@ BitmapFileHeader
 4: neededIndexNumber
 
 4[colorIndexNumber]: colors
-1[3]: image
+-- 1[3]: image
 10<String>: author
 10<ByteString>: hoge
 
@@ -128,10 +128,12 @@ top :: BinaryStructure
 				{ BinaryStructure $2 $4 }
 
 emptyLines :: ()
-	= [ \n]*		{ () }
+	= "--" [^\n]* [\n]	{ () }
+	/ [ \n]*		{ () }
 
 spaces :: ()
 	= [ ]*			{ () }
+
 
 name :: String
 	= [A-Z][a-zA-Z0-9]*	{ $1 : $2 }
