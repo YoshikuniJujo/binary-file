@@ -2,7 +2,7 @@
 
 BitmapFileHeader
 
-2: 19778
+2: "BM"
 4: fileSize
 2: 0
 2: 0
@@ -19,5 +19,6 @@ BitmapFileHeader
 4: colorIndexNumber
 4: neededIndexNumber
 4[colorIndexNumber]: colors
+imageSize<ByteString>: image
 
 |]
