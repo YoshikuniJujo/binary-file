@@ -46,6 +46,7 @@ BitmapFileHeader
 4[colorIndexNumber]: colors
 1[3]: image
 10<String>: author
+10<ByteString>: hoge
 
 |]
 
@@ -64,7 +65,7 @@ data ConstantValue
 constantInt (ConstantInt v) = v
 constantInt (ConstantString v) = readInt v
 
-data Type = String | Int deriving Show
+data Type = String | Int | ByteString deriving Show
 
 data VariableValue
 	= VariableValue { variableValue :: String }
@@ -140,6 +141,7 @@ dat :: BinaryStructureItem
 				{ binaryStructureItem $1 $2 $3 $5 }
 type :: Type
 	= "<String>"		{ String }
+	/ "<ByteString>"	{ ByteString }
 	/ "<Int>"?		{ Int }
 
 expr :: Expression

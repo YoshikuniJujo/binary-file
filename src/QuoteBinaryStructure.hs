@@ -64,6 +64,7 @@ writeField bs size Int Nothing (Right v) =
 writeField bs size Int (Just n) (Right v) = appE (varE 'cc) $ appsE [varE 'map,
 	appE (varE 'fi) (expression bs size), getField bs v]
 writeField bs size String Nothing (Right v) = appE (varE 'fs) $ getField bs v
+writeField bs size ByteString Nothing (Right v) = appE (varE 'fbs) $ getField bs v
 
 intToBin :: Int -> Int -> String
 intToBin n x = intToBinGen (fromIntegral n) (fromIntegral x)
@@ -112,6 +113,12 @@ mkBody bsn body cs ret = do
 			(normalB $ appE (varE 'ti) $ takeE' n $ varE cs') []
 		next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
 		return ([def, next], cs'')
+	    | Right var <- valueOf item, Nothing <- sizeOf item, ByteString <- typeOf item = do
+		cs'' <- newName "cs"
+		def <- valD (varP $ fromJust $ lookup var np)
+			(normalB $ takeE'' n $ varE cs') []
+		next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
+		return ([def, next], cs'')
 	    | Right var <- valueOf item, Nothing <- sizeOf item = do
 		cs'' <- newName "cs"
 		def <- valD (varP $ fromJust $ lookup var np)
@@ -128,6 +135,7 @@ mkBody bsn body cs ret = do
 		next <- valD (varP cs'') (normalB $
 			dropE' (multiE' n $ expression ret expr) $ varE cs') []
 		return ([def, next], cs'')
+	    | otherwise = error $ show $ typeOf item
 	    where
 	    n = expression ret $ bytesOf item
 
@@ -158,6 +166,9 @@ equal x y = infixE (Just $ litE $ integerL $ fromIntegral x) (varE '(==)) (Just 
 takeE' :: ExpQ -> ExpQ -> ExpQ
 takeE' n xs = appE (varE 'ts) $ appsE [varE 'tk, n, xs]
 
+takeE'' :: ExpQ -> ExpQ -> ExpQ
+takeE'' n xs = appE (varE 'tbs) $ appsE [varE 'tk, n, xs]
+
 -- dropE :: Int -> ExpQ -> ExpQ
 -- dropE n xs = appsE [varE 'dp, litE $ integerL $ fromIntegral n, xs]
 
@@ -187,9 +198,12 @@ mkData bsn body =
 				(mkName $ fromRight $ valueOf item) $
 					strictType notStrict $
 						appT listT $ conT ''Int
-			(Nothing, _) -> varStrictType
+			(Nothing, String) -> varStrictType
 				(mkName $ fromRight $ valueOf item) $
 					strictType notStrict $ conT ''String
+			(Nothing, ByteString) -> varStrictType
+				(mkName $ fromRight $ valueOf item) $
+					strictType notStrict $ conT ''BS.ByteString
 
 	isRight item
 		| Right _ <- valueOf item = True
@@ -206,6 +220,8 @@ class Str a where
 	dp :: Int -> a -> a
 	ts :: a -> String
 	fs :: String -> a
+	fbs :: BS.ByteString -> a
+	tbs :: a -> BS.ByteString
 	ti :: a -> Int
 	fi :: Int -> Int -> a
 	cc :: [a] -> a
@@ -215,6 +231,8 @@ instance Str String where
 	dp = drop
 	ts = id
 	fs = id
+	fbs = ts
+	tbs = fs
 	ti = readInt
 	fi = intToBin
 	cc = concat
@@ -224,6 +242,8 @@ instance Str BS.ByteString where
 	dp = BS.drop
 	ts = map (chr . fromIntegral) . BS.unpack
 	fs = BS.pack . map (fromIntegral . ord)
+	fbs = id
+	tbs = id
 	ti = readInt . map (chr . fromIntegral) . BS.unpack
 	fi n = BS.pack . map (fromIntegral . ord) . intToBin n
 	cc = BS.concat
