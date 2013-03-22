@@ -66,5 +66,5 @@ library
     hs-source-dirs:	src
     exposed-modules:	Binary
     other-modules:	QuoteBinaryStructure, ParseBinaryStructure, Here
-    build-depends:	base > 3 && < 5, template-haskell, peggy
+    build-depends:	base > 3 && < 5, template-haskell, peggy, bytestring
     ghc-options:	-Wall
