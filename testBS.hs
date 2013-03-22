@@ -6,9 +6,8 @@ import qualified Data.ByteString as BS
 
 main = do
 	[inf] <- getArgs
-
---	cnt <- readBinaryFile inf
 	cnt <- BS.readFile inf
+
 	let bmp = readBitmap cnt
 	putStrLn $ (++ "...") $ take 3000 $ show $ readBitmap cnt
 
@@ -16,12 +15,8 @@ main = do
 		authorFirst = "Yoshikuni ",
 		authorSecond = "Jujo      "
 	 }
---	return ()
---	writeBinaryFile "tmp.bmp" out
-	BS.writeFile "tmp.bmp" out
 
-testBMP :: IO Bitmap
-testBMP = readBitmap `fmap` BS.readFile "tmp/test.bmp"
+	BS.writeFile "tmp.bmp" out
 
 [binary|
 
@@ -32,6 +27,7 @@ Bitmap
 2: 0
 2: 0
 4: offset
+
 4: 40
 4: bitmapWidth
 4: bitmapHeight
@@ -44,7 +40,9 @@ Bitmap
 4: numberOfColors
 4: importantColors
 4[numberOfColors]: colors
+
 imageSize<ByteString>: image
+
 10<String>: authorFirst
 10<String>: authorSecond
 
