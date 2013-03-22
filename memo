@@ -120,3 +120,7 @@ class Str a where
 	dp :: Int -> a -> a
 	ts :: a -> String
 	ti :: a -> Int
+
+次は
+4<(Int, Int, Int)>[colorIndexNumber]: colors
+の実装をしよう。
