@@ -1,6 +1,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 
-import Binary
+import File.Binary
 import System.Environment
 import qualified Data.ByteString as BS
 
@@ -41,7 +41,7 @@ Bitmap
 4: verticalResolution
 4: numberOfColors
 4: importantColors
-4<(Int,Int,Int)>[numberOfColors]: colors
+4<(Int, Int, Int)>[numberOfColors]: colors
 -- 4[numberOfColors]: colors
 imageSize<ByteString>: image
 

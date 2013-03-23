@@ -1,4 +1,4 @@
-module Binary (
+module File.Binary (
 	readBinaryFile,
 	writeBinaryFile,
 	binary
