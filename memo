@@ -126,3 +126,11 @@ class Str a where
 の実装をしよう。
 
 それと読み捨ても必要だ。
+
+2013.03.23 Sat.
+
+tuple の数だけ変数を作る。
+map f [その変数]
+それを listE でまとめて、appE (varE 'cc) でつなげる。
+
+また、それを let (その変数) = exp in (here) の here に入れる。

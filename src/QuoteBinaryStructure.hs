@@ -59,12 +59,74 @@ writeField :: Name -> Expression -> Type -> Maybe Expression ->
 	Either Int String -> ExpQ
 writeField bs size Int Nothing (Left n) =
 	appsE [varE 'fi, expression bs size, litE $ integerL $ fromIntegral n]
-writeField bs size Int Nothing (Right v) =
-	appsE [varE 'fi, expression bs size, getField bs v]
-writeField bs size Int (Just n) (Right v) = appE (varE 'cc) $ appsE [varE 'map,
-	appE (varE 'fi) (expression bs size), getField bs v]
-writeField bs size String Nothing (Right v) = appE (varE 'fs) $ getField bs v
-writeField bs size ByteString Nothing (Right v) = appE (varE 'fbs) $ getField bs v
+writeField bs bytes typ size (Right v) =
+	fieldValueToStr bs bytes (isJust size) typ $ getField bs v
+
+fieldValueToStr :: Name -> Expression -> Bool -> Type -> ExpQ -> ExpQ
+fieldValueToStr bs size False Int = appE $ appE (varE 'fi) (expression bs size)
+fieldValueToStr bs size True Int = appE (varE 'cc) . appE (appsE [varE 'map,
+	appE (varE 'fi) (expression bs size)])
+fieldValueToStr bs size False String = appE $ varE 'fs
+fieldValueToStr bs size False ByteString = appE $ varE 'fbs
+fieldValueToStr bs size False (Tuple ts) = \val -> do
+	nl <- newNameList $ length ts
+	let	def = valD (tupP $ map varP nl) (normalB val) []
+		bdy = zipWith (fieldValueToStr bs (Number 1) False) ts $ map varE nl
+	 in	letE [def] $ appE (varE 'cc) $ listE bdy
+fieldValueToStr bs size True (Tuple ts) = \val -> do
+	runIO $ do
+		putStrLn "here"
+		print ts
+	nl <- newNameList $ length ts
+	let	ps = tupP $ map varP nl
+		bdy = zipWith (fieldValueToStr bs (Number 1) False) ts $ map varE nl
+	 in	appE (varE 'cc) $ appsE [
+			varE 'map,
+			lamE [ps] $ appE (varE 'cc) $ addZero $ listE bdy,
+			val]
+	where
+	addZero = -- appE $ addZeros 1
+		appE $ correctSize' $ expression bs size
+{-
+	let	ps = tupP $ map varP nl
+		bdy = zipWith (fieldValueToStr bs (Number 1) False) ts $ map varE nl
+	 in	appE (varE 'cc) $ appE (correctSize' $ expression bs size) $ appsE [
+			varE 'map, lamE [ps] $ appE (varE 'cc) $ listE bdy, val]
+-}
+{-
+	 in	appE (varE 'cc) $ correctSize (expression bs size) $ appsE [
+			varE 'map, lamE [ps] $ appE (varE 'cc) $ listE bdy, val]
+-}
+
+addZeros :: Int -> ExpQ
+addZeros ln = do
+	lst <- newName "lst"
+	let bdy = infixApp (varE lst) (varE '(++)) $
+		appsE [varE 'replicate, litE $ integerL $ fromIntegral ln, varE 'zero]
+	lam1E (varP lst) bdy
+
+correctSize' :: ExpQ -> ExpQ
+correctSize' size = do
+--	let size = litE $ IntegerL 100
+	lst <- newName "lst"
+	let bdy = infixApp (varE lst) (varE '(++)) $
+		appsE [varE 'replicate,
+			infixApp size (varE '(-)) $ appE (varE 'length) $ varE lst,
+			varE 'zero]
+	lam1E (varP lst) bdy
+
+correctSize :: ExpQ -> ExpQ -> ExpQ
+correctSize size list = infixApp list (varE '(++)) $
+	appsE [varE 'replicate,
+		infixApp size (varE '(-)) $ appE (varE 'length) list,
+		varE 'zero]
+
+newNameList :: Int -> Q [Name]
+newNameList 0 = return []
+newNameList n = liftA2 (:) (newName "x") $ newNameList (n - 1)
+
+mapTuple :: (Type -> ExpQ) -> [Type] -> ExpQ
+mapTuple f ts = varE 'show
 
 intToBin :: Int -> Int -> String
 intToBin n x = intToBinGen (fromIntegral n) (fromIntegral x)
@@ -125,6 +187,18 @@ mkBody bsn body cs ret = do
 			(normalB $ takeE' n $ varE cs') []
 		next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
 		return ([def, next], cs'')
+	    | Right var <- valueOf item, Just expr <- sizeOf item, Tuple ts <- typeOf item =
+		if all (== Int) ts then do
+			cs'' <- newName "cs"
+			def <- valD (varP $ fromJust $ lookup var np)
+				(normalB $
+					appsE [varE 'map, strToTupple $ length ts,
+					appsE [varE 'devideN, n,
+				takeE' (multiE' n $ expression ret expr) $ varE cs']]) []
+			next <- valD (varP cs'') (normalB $
+				dropE' (multiE' n $ expression ret expr) $ varE cs') []
+			return ([def, next], cs'')
+		    else error "hogeru"
 	    | Right var <- valueOf item, Just expr <- sizeOf item = do
 		cs'' <- newName "cs"
 		def <- valD (varP $ fromJust $ lookup var np)
@@ -138,6 +212,18 @@ mkBody bsn body cs ret = do
 	    | otherwise = error $ show $ typeOf item
 	    where
 	    n = expression ret $ bytesOf item
+
+strToTupple :: Int -> ExpQ
+strToTupple n = (toTupple n) `dot` appE (varE 'map) (varE 'ord) `dot`
+	appE (varE 'take) (litE $ integerL $ fromIntegral n)
+
+dot :: ExpQ -> ExpQ -> ExpQ
+dot f1 f2 = infixApp f1 (varE '(.)) f2
+
+toTupple :: Int -> ExpQ
+toTupple n = do
+	nl <- newNameList n
+	lam1E (listP $ map varP nl) (tupE $ map varE nl)
 
 expression :: Name -> Expression -> ExpQ
 expression ret (Variable v) = appE (varE $ mkName v) (varE ret)
@@ -191,23 +277,26 @@ mkData bsn body =
 
 	vsts = flip map (filter isRight body) $ \item ->
 		case (sizeOf item, typeOf item) of
-			(Nothing, Int) -> varStrictType
+			(sz, tp) -> varStrictType
 				(mkName $ fromRight $ valueOf item) $
-					strictType notStrict $ conT ''Int
-			(_, Int) -> varStrictType
-				(mkName $ fromRight $ valueOf item) $
-					strictType notStrict $
-						appT listT $ conT ''Int
-			(Nothing, String) -> varStrictType
-				(mkName $ fromRight $ valueOf item) $
-					strictType notStrict $ conT ''String
-			(Nothing, ByteString) -> varStrictType
-				(mkName $ fromRight $ valueOf item) $
-					strictType notStrict $ conT ''BS.ByteString
-
+					strictType notStrict $ mkType (isJust sz) tp -- conT ''Int
 	isRight item
 		| Right _ <- valueOf item = True
 		| otherwise = False
+
+mkType :: Bool -> Type -> TypeQ
+mkType True t = appT listT $ mkType False t
+mkType False Int = conT ''Int
+mkType False String = conT ''String
+mkType False ByteString = conT ''BS.ByteString
+mkType False (Tuple ts) = appsT $ tupleT (length ts) : map (mkType False) ts
+
+appsT :: [TypeQ] -> TypeQ
+appsT [t] = t
+appsT (t1 : t2 : ts) = appsT (appT t1 t2 : ts)
+
+mkTupleReader :: [Type] -> ExpQ
+mkTupleReader _ = varE 'show
 
 fromRight = either (error "not Right") id
 
@@ -225,6 +314,7 @@ class Str a where
 	ti :: a -> Int
 	fi :: Int -> Int -> a
 	cc :: [a] -> a
+	zero :: a
 
 instance Str String where
 	tk = take
@@ -236,6 +326,7 @@ instance Str String where
 	ti = readInt
 	fi = intToBin
 	cc = concat
+	zero = "\0"
 
 instance Str BS.ByteString where
 	tk = BS.take
@@ -247,3 +338,4 @@ instance Str BS.ByteString where
 	ti = readInt . map (chr . fromIntegral) . BS.unpack
 	fi n = BS.pack . map (fromIntegral . ord) . intToBin n
 	cc = BS.concat
+	zero = BS.singleton 0

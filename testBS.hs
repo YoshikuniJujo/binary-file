@@ -9,7 +9,7 @@ main = do
 	cnt <- BS.readFile inf
 
 	let bmp = readBitmap cnt
-	putStrLn $ (++ "...") $ take 3000 $ show $ readBitmap cnt
+	putStrLn $ (++ "...") $ take 4000 $ show $ readBitmap cnt
 
 	let out = writeBitmap bmp {
 		authorFirst = "Yoshikuni ",
@@ -17,6 +17,8 @@ main = do
 	 }
 
 	BS.writeFile "tmp.bmp" out
+
+tmpBMP = fmap readBitmap $ BS.readFile "tmp.bmp"
 
 [binary|
 
@@ -39,8 +41,8 @@ Bitmap
 4: verticalResolution
 4: numberOfColors
 4: importantColors
-4[numberOfColors]: colors
-
+4<(Int,Int,Int)>[numberOfColors]: colors
+-- 4[numberOfColors]: colors
 imageSize<ByteString>: image
 
 10<String>: authorFirst

@@ -43,8 +43,9 @@ BitmapFileHeader
 4: colorIndexNumber
 4: neededIndexNumber
 
-4[colorIndexNumber]: colors
+4<(Int,Int,Int)>[colorIndexNumber]: colors
 -- 1[3]: image
+imageSize<ByteString>: image
 10<String>: author
 10<ByteString>: hoge
 
@@ -65,7 +66,7 @@ data ConstantValue
 constantInt (ConstantInt v) = v
 constantInt (ConstantString v) = readInt v
 
-data Type = String | Int | ByteString deriving Show
+data Type = String | Int | ByteString | Tuple [Type] deriving (Show, Eq)
 
 data VariableValue
 	= VariableValue { variableValue :: String }
@@ -139,12 +140,23 @@ name :: String
 	= [A-Z][a-zA-Z0-9]*	{ $1 : $2 }
 
 dat :: BinaryStructureItem
-	= expr type size? ':' spaces val emptyLines
+	= expr typ size? ':' spaces val emptyLines
 				{ binaryStructureItem $1 $2 $3 $5 }
-type :: Type
-	= "<String>"		{ String }
-	/ "<ByteString>"	{ ByteString }
-	/ "<Int>"?		{ Int }
+typ :: Type
+	= [<] typeGen [>]	{ $2 }
+	/ ""			{ Int }
+
+typeGen :: Type
+	= [(] tupleGen [)]	{ Tuple $2 }
+	/ "String"		{ String }
+	/ "ByteString"		{ ByteString }
+	/ "Int"			{ Int }
+
+tupleGen :: [Type]
+	= typeGen spaces "," spaces tupleGen
+				{ $1 : $4 }
+	/ typeGen spaces "," spaces typeGen
+				{ [$1, $4] }
 
 expr :: Expression
 	= expr '*' expr		{ Multiple $1 $2 }
