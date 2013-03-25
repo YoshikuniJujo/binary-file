@@ -24,6 +24,7 @@ import Data.Char
 import Data.Bits
 
 import ParseBinaryStructure
+import Classes
 
 import qualified Data.ByteString as BS
 
@@ -60,7 +61,7 @@ mkWriter endian bsn body = do
 
 writeField :: Endian -> Name -> Expression -> Type -> Maybe Expression ->
 	Either Int String -> ExpQ
-writeField endian bs size (Type "Int") Nothing (Left n) =
+writeField endian bs size (Type _) Nothing (Left n) =
 	appsE [fiend, expression bs size, litE $ integerL $ fromIntegral n]
 	where
 	fiend = case endian of
@@ -75,27 +76,17 @@ fiend endian = case endian of
 	BigEndian -> varE 'fiiBE
 
 fieldValueToStr :: Endian -> Name -> Expression -> Bool -> Type -> ExpQ -> ExpQ
-fieldValueToStr endian bs size False (Type "Int") = appE $ appE (fiend endian) (expression bs size)
-fieldValueToStr endian bs size False (Tuple ts) = \val -> do
-	nl <- newNameList $ length ts
-	let	def = valD (tupP $ map varP nl) (normalB val) []
-		bdy = zipWith (fieldValueToStr endian bs (Number 1) False) ts $ map varE nl
-	 in	letE [def] $ appE (varE 'cc) $ listE bdy
-fieldValueToStr endian bs size True (Tuple ts) = \val -> do
-	runIO $ do
-		putStrLn "here"
-		print ts
-	nl <- newNameList $ length ts
-	let	ps = tupP $ map varP nl
-		bdy = zipWith (fieldValueToStr endian bs (Number 1) False) ts $ map varE nl
-	 in	appE (varE 'cc) $ appsE [
-			varE 'map,
-			lamE [ps] $ appE (varE 'cc) $ addZero $ listE bdy,
-			val]
-	where
-	addZero = appE $ correctSize' $ expression bs size
 fieldValueToStr endian bs size False (Type typ) =
 	appE $ appE (varE 'fromType) (expression bs size)
+fieldValueToStr endian bs size True typ = \val -> do
+	runIO $ do
+		putStrLn "there"
+	appE (varE 'cc) $ appsE [
+		varE 'map, appE (varE 'fromType) (expression bs size), val]
+	where
+	addZero = appE $ correctSize' $ expression bs size
+	
+fieldValueToStr endian bs size bool typ = error $ show (endian, bs, size, bool, typ)
 
 addZeros :: Int -> ExpQ
 addZeros ln = do
@@ -126,12 +117,6 @@ newNameList n = liftA2 (:) (newName "x") $ newNameList (n - 1)
 mapTuple :: (Type -> ExpQ) -> [Type] -> ExpQ
 mapTuple f ts = varE 'show
 
-intToBin :: Endian -> Int -> Integer -> String
-intToBin LittleEndian 0 _ = ""
-intToBin LittleEndian n x = chr (fromIntegral $ x `mod` 256) :
-	intToBin LittleEndian (fromIntegral n - 1) (x `div` 256)
-intToBin BigEndian n x = reverse $ intToBin LittleEndian n x
-
 mkReader :: Endian -> String -> [BinaryStructureItem] -> DecQ
 mkReader endian bsn body = do
 	cs <- newName "cs"
@@ -161,39 +146,16 @@ mkBody endian bsn body cs ret = do
 		let e = [e| error "bad value" |]
 		d <- valD (varP cs'') (normalB $ condE p t e) []
 		return ([d], cs'')
-	    | Right var <- valueOf endian item, Just expr <- sizeOf item,
-		Tuple ts <- typeOf item =
-		if all (== Type "Int") ts then do
-			cs'' <- newName "cs"
-			def <- valD (varP $ fromJust $ lookup var np)
-				(normalB $
-					appsE [varE 'map, strToTupple $ length ts,
-					appsE [varE 'devideN, n,
-				takeE' (multiE' n $ expression ret expr) $ varE cs']]) []
-			next <- valD (varP cs'') (normalB $
-				dropE' (multiE' n $ expression ret expr) $ varE cs') []
-			return ([def, next], cs'')
-		    else error "hogeratta"
 	    | Right var <- valueOf endian item, Just expr <- sizeOf item = do
 		cs'' <- newName "cs"
 		def <- valD (varP $ fromJust $ lookup var np)
 			(normalB $
-				appsE [varE 'map, tiend,
+				appsE [varE 'map, tiend',
 				appsE [varE 'devideN, n,
 			takeE' (multiE' n $ expression ret expr) $ varE cs']]) []
 		next <- valD (varP cs'') (normalB $
 			dropE' (multiE' n $ expression ret expr) $ varE cs') []
 		return ([def, next], cs'')
-	    | Right var <- valueOf endian item, Nothing <- sizeOf item,
-		Tuple ts <- typeOf item =
-		if all (== Type "Int") ts then do
-			cs'' <- newName "cs"
-			def <- valD (varP $ fromJust $ lookup var np)
-				(normalB $ appE (strToTupple $ length ts) $
-				takeE' n $ varE cs') []
-			next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
-			return ([def, next], cs'')
-		    else error "hogeru"
 	    | Right var <- valueOf endian item, Nothing <- sizeOf item,
 		Type typ <- typeOf item = do
 		cs'' <- newName "cs"
@@ -204,6 +166,7 @@ mkBody endian bsn body cs ret = do
 	    | otherwise = error $ show $ typeOf item
 	    where
 	    n = expression ret $ bytesOf item
+	    tiend' = varE 'toType
 	    tiend = case endian of
 		LittleEndian -> varE 'tii
 		BigEndian -> varE 'tiiBE
@@ -276,8 +239,7 @@ mkData endian bsn body =
 
 mkType :: Bool -> Type -> TypeQ
 mkType True t = appT listT $ mkType False t
-mkType False (Tuple ts) = appsT $ tupleT (length ts) : map (mkType False) ts
-mkType False (Type typ) = conT $ mkName typ
+mkType False (Type typ) = typ
 
 appsT :: [TypeQ] -> TypeQ
 appsT [t] = t
@@ -291,68 +253,3 @@ fromRight = either (error "not Right") id
 devideN :: Int -> [a] -> [[a]]
 devideN _ [] = []
 devideN n xs = take n xs : devideN n (drop n xs)
-
-class RetType a where
-	fromType :: Str b => Int -> a -> b
-	toType :: Str b => b -> a
-
-instance RetType Int where
-	fromType = fii
-	toType = tii
-
-instance RetType String where
-	fromType _ = fs
-	toType = ts
-
-instance RetType BS.ByteString where
-	fromType _ = fbs
-	toType = tbs
-
-class Str a where
-	tk :: Int -> a -> a
-	dp :: Int -> a -> a
-	ts :: a -> String
-	fs :: String -> a
-	fbs :: BS.ByteString -> a
-	tbs :: a -> BS.ByteString
-	ti :: a -> Integer
-	fi :: Int -> Integer -> a
-	tiBE :: a -> Integer
-	fiBE :: Int -> Integer -> a
-	cc :: [a] -> a
-	zero :: a
-
-instance Str String where
-	tk = take
-	dp = drop
-	ts = id
-	fs = id
-	fbs = ts
-	tbs = fs
-	ti = readInt LittleEndian
-	fi = intToBin LittleEndian
-	tiBE = readInt BigEndian
-	fiBE = intToBin BigEndian
-	cc = concat
-	zero = "\0"
-
-fii, fiiBE :: Str a => Int -> Int -> a
-fii n = fi n . fromIntegral
-fiiBE n = fiBE n . fromIntegral
-tii, tiiBE :: Str a => a -> Int
-tii = fromIntegral . ti
-tiiBE = fromIntegral . tiBE
-
-instance Str BS.ByteString where
-	tk = BS.take
-	dp = BS.drop
-	ts = map (chr . fromIntegral) . BS.unpack
-	fs = BS.pack . map (fromIntegral . ord)
-	fbs = id
-	tbs = id
-	ti = readInt LittleEndian . map (chr . fromIntegral) . BS.unpack
-	fi n = BS.pack . map (fromIntegral . ord) . intToBin LittleEndian n
-	tiBE = readInt BigEndian . map (chr . fromIntegral) . BS.unpack
-	fiBE n = BS.pack . map (fromIntegral . ord) . intToBin BigEndian n
-	cc = BS.concat
-	zero = BS.singleton 0

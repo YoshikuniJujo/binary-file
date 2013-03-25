@@ -18,6 +18,7 @@ import Text.Peggy
 import Here
 import Control.Arrow
 import Data.Char
+import Language.Haskell.TH hiding (Type)
 
 main :: IO ()
 main = do
@@ -71,9 +72,11 @@ constantInt endian (ConstantInt v) = v
 constantInt endian (ConstantString v) = fromIntegral $ readInt endian v
 
 data Type
-	= Tuple [Type]
-	| Type String
-	deriving (Show, Eq)
+--	= Tuple [Type]
+	= Type TypeQ -- String
+
+instance Show Type where
+	show _ = "Type"
 
 data VariableValue
 	= VariableValue { variableValue :: String }
@@ -120,6 +123,9 @@ readInt LittleEndian "" = 0
 readInt LittleEndian (c : cs) = fromIntegral (ord c) + 2 ^ 8 * readInt LittleEndian cs
 readInt BigEndian str = readInt LittleEndian $ reverse str
 
+tupT :: [TypeQ] -> TypeQ
+tupT ts = foldl appT (tupleT $ length ts) ts
+
 [peggy|
 
 top :: BinaryStructure
@@ -148,11 +154,21 @@ dat :: BinaryStructureItem
 				{ binaryStructureItem $1 $2 $3 $5 }
 typ :: Type
 	= [<] typeGen [>]	{ $2 }
-	/ ""			{ Type "Int" }
+	/ ""			{ Type $ conT $ mkName "Int" }
 
 typeGen :: Type
-	= [(] tupleGen [)]	{ Tuple $2 }
-	/ [A-Z][.a-zA-Z0-9]*	{ Type $ $1 : $2 }
+	= [(] tupleGen_ [)]	{ Type $ tupT $2 }
+--	= [(] tupleGen [)]	{ Tuple $2 }
+	/ [A-Z][.a-zA-Z0-9]*	{ Type $ conT $ mkName $ $1 : $2 }
+
+typeGen_ :: TypeQ
+	= [A-Z][.a-zA-Z0-9]*	{ conT $ mkName $ $1 : $2 }
+
+tupleGen_ :: [TypeQ]
+	= typeGen_ spaces "," spaces tupleGen_
+				{ $1 : $4 }
+	/ typeGen_ spaces "," spaces typeGen_
+				{ [$1, $4] }
 
 tupleGen :: [Type]
 	= typeGen spaces "," spaces tupleGen
@@ -172,9 +188,9 @@ size :: Expression
 val :: Either ConstantValue VariableValue
 	= num			{ Left $ ConstantInt $1 }
 	/ var			{ Right $ VariableValue $1 }
-	/ stringL		{ Left $ ConstantString $1 }
+	/ stringLit		{ Left $ ConstantString $1 }
 
-stringL :: String
+stringLit :: String
 	= '\"' [^\"]* '\"'
 
 var :: String

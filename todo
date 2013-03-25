@@ -5,3 +5,4 @@
 5. Int や String、(Int, Int, ... Int) 等を RetType の instance とする
 6. くりかえしの実装
 7. リファクタリング
+8. ByteString を切り離してもいいかもしれない

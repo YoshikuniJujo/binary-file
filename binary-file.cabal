@@ -73,6 +73,6 @@ source-repository	head
 library
     hs-source-dirs:	src
     exposed-modules:	File.Binary
-    other-modules:	QuoteBinaryStructure, ParseBinaryStructure, Here
+    other-modules:	QuoteBinaryStructure, ParseBinaryStructure, Here, Classes
     build-depends:	base > 3 && < 5, template-haskell, peggy, bytestring
     ghc-options:	-Wall

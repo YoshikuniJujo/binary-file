@@ -1,4 +1,4 @@
-{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE QuasiQuotes, FlexibleInstances #-}
 
 import File.Binary
 import System.Environment
@@ -17,13 +17,22 @@ main = do
 		author_second = "Jujo      "
 	 }
 
-	BS.writeFile "tmp.bmp" out
+	BS.writeFile "tmp/out.bmp" out
 
 tmpBMP = fmap readBitmap $ BS.readFile "tmp.bmp"
 
 instance RetType Int16 where
 	fromType n = fi n . fromIntegral
 	toType = fromIntegral . ti
+
+instance RetType (Int, Int, Int) where
+	fromType n (b, g, r) = cc $ [
+		fromType 1 b, fromType 1 g, fromType 1 r] ++ replicate (n - 3) zero
+	toType str = let
+		b = toType $ tk 1 str
+		g = toType $ tk 1 $ dp 1 str
+		r = toType $ tk 1 $ dp 2 str in
+		(b, g, r)
 
 [binary|
 
