@@ -44,7 +44,6 @@ mkHaskellTree BinaryStructure{
 	binaryStructureEndian = endian,
 	binaryStructureBody = body } = do
 		d <- mkData endian bsn body
---		dbg <- debugReadType
 		r <- mkReader endian bsn body
 		w <- mkWriter endian bsn body
 		return [d, r, w]
@@ -61,7 +60,7 @@ mkWriter endian bsn body = do
 
 writeField :: Endian -> Name -> Expression -> Type -> Maybe Expression ->
 	Either Int String -> ExpQ
-writeField endian bs size Int Nothing (Left n) =
+writeField endian bs size (Type "Int") Nothing (Left n) =
 	appsE [fiend, expression bs size, litE $ integerL $ fromIntegral n]
 	where
 	fiend = case endian of
@@ -76,11 +75,7 @@ fiend endian = case endian of
 	BigEndian -> varE 'fiiBE
 
 fieldValueToStr :: Endian -> Name -> Expression -> Bool -> Type -> ExpQ -> ExpQ
-fieldValueToStr endian bs size False Int = appE $ appE (fiend endian) (expression bs size)
-fieldValueToStr endian bs size True Int = appE (varE 'cc) . appE (appsE [varE 'map,
-	appE (fiend endian) (expression bs size)])
-fieldValueToStr _ bs size False String = appE $ varE 'fs
-fieldValueToStr _ bs size False ByteString = appE $ varE 'fbs
+fieldValueToStr endian bs size False (Type "Int") = appE $ appE (fiend endian) (expression bs size)
 fieldValueToStr endian bs size False (Tuple ts) = \val -> do
 	nl <- newNameList $ length ts
 	let	def = valD (tupP $ map varP nl) (normalB val) []
@@ -98,9 +93,9 @@ fieldValueToStr endian bs size True (Tuple ts) = \val -> do
 			lamE [ps] $ appE (varE 'cc) $ addZero $ listE bdy,
 			val]
 	where
-	addZero = -- appE $ addZeros 1
-		appE $ correctSize' $ expression bs size
-fieldValueToStr endian bs size False (Type typ) = appE $ varE 'fromType
+	addZero = appE $ correctSize' $ expression bs size
+fieldValueToStr endian bs size False (Type typ) =
+	appE $ appE (varE 'fromType) (expression bs size)
 
 addZeros :: Int -> ExpQ
 addZeros ln = do
@@ -111,7 +106,6 @@ addZeros ln = do
 
 correctSize' :: ExpQ -> ExpQ
 correctSize' size = do
---	let size = litE $ IntegerL 100
 	lst <- newName "lst"
 	let bdy = infixApp (varE lst) (varE '(++)) $
 		appsE [varE 'replicate,
@@ -132,22 +126,11 @@ newNameList n = liftA2 (:) (newName "x") $ newNameList (n - 1)
 mapTuple :: (Type -> ExpQ) -> [Type] -> ExpQ
 mapTuple f ts = varE 'show
 
-{-
-intToBin :: Endian -> Int -> Int -> String
-intToBin LittleEndian n x = intToBinGen (fromIntegral n) (fromIntegral x)
-intToBin BigEndian n x = reverse $ intToBin LittleEndian n x
--}
-
 intToBin :: Endian -> Int -> Integer -> String
 intToBin LittleEndian 0 _ = ""
 intToBin LittleEndian n x = chr (fromIntegral $ x `mod` 256) :
 	intToBin LittleEndian (fromIntegral n - 1) (x `div` 256)
 intToBin BigEndian n x = reverse $ intToBin LittleEndian n x
-
--- readerType :: String -> DecQ
--- readerType = sigD (mkName $ "read" ++ bsn) [t| Str a => a ->
-
--- debugReadType :: DecQ = [d| readBitmap :: Str a => a -> Bitmap |]
 
 mkReader :: Endian -> String -> [BinaryStructureItem] -> DecQ
 mkReader endian bsn body = do
@@ -178,27 +161,9 @@ mkBody endian bsn body cs ret = do
 		let e = [e| error "bad value" |]
 		d <- valD (varP cs'') (normalB $ condE p t e) []
 		return ([d], cs'')
-	    | Right var <- valueOf endian item, Nothing <- sizeOf item, Int <- typeOf item = do
-		cs'' <- newName "cs"
-		def <- valD (varP $ fromJust $ lookup var np)
-			(normalB $ appE tiend $ takeE' n $ varE cs') []
-		next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
-		return ([def, next], cs'')
-	    | Right var <- valueOf endian item, Nothing <- sizeOf item, ByteString <- typeOf item = do
-		cs'' <- newName "cs"
-		def <- valD (varP $ fromJust $ lookup var np)
-			(normalB $ takeE'' n $ varE cs') []
-		next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
-		return ([def, next], cs'')
-	    | Right var <- valueOf endian item, Nothing <- sizeOf item,
-		String <- typeOf item = do
-		cs'' <- newName "cs"
-		def <- valD (varP $ fromJust $ lookup var np)
-			(normalB $ takeE' n $ varE cs') []
-		next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
-		return ([def, next], cs'')
-	    | Right var <- valueOf endian item, Just expr <- sizeOf item, Tuple ts <- typeOf item =
-		if all (== Int) ts then do
+	    | Right var <- valueOf endian item, Just expr <- sizeOf item,
+		Tuple ts <- typeOf item =
+		if all (== Type "Int") ts then do
 			cs'' <- newName "cs"
 			def <- valD (varP $ fromJust $ lookup var np)
 				(normalB $
@@ -208,7 +173,7 @@ mkBody endian bsn body cs ret = do
 			next <- valD (varP cs'') (normalB $
 				dropE' (multiE' n $ expression ret expr) $ varE cs') []
 			return ([def, next], cs'')
-		    else error "hogeru"
+		    else error "hogeratta"
 	    | Right var <- valueOf endian item, Just expr <- sizeOf item = do
 		cs'' <- newName "cs"
 		def <- valD (varP $ fromJust $ lookup var np)
@@ -219,13 +184,12 @@ mkBody endian bsn body cs ret = do
 		next <- valD (varP cs'') (normalB $
 			dropE' (multiE' n $ expression ret expr) $ varE cs') []
 		return ([def, next], cs'')
-	    | Right var <- valueOf endian item, Nothing <- sizeOf item, Tuple ts <- typeOf item =
-		if all (== Int) ts then do
+	    | Right var <- valueOf endian item, Nothing <- sizeOf item,
+		Tuple ts <- typeOf item =
+		if all (== Type "Int") ts then do
 			cs'' <- newName "cs"
 			def <- valD (varP $ fromJust $ lookup var np)
 				(normalB $ appE (strToTupple $ length ts) $
---					appsE [varE 'map, strToTupple $ length ts,
---					appsE [varE 'devideN, n,
 				takeE' n $ varE cs') []
 			next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
 			return ([def, next], cs'')
@@ -277,17 +241,11 @@ divE x y = infixE (Just x) (varE 'div) (Just y)
 equal :: Int -> ExpQ -> ExpQ
 equal x y = infixE (Just $ litE $ integerL $ fromIntegral x) (varE '(==)) (Just y)
 
--- takeE :: Int -> ExpQ -> ExpQ
--- takeE n xs = appsE [varE 'tk, litE $ integerL $ fromIntegral n, xs]
-
 takeE' :: ExpQ -> ExpQ -> ExpQ
 takeE' n xs = appE (varE 'ts) $ appsE [varE 'tk, n, xs]
 
 takeE'' :: ExpQ -> ExpQ -> ExpQ
 takeE'' n xs = appE (varE 'tbs) $ appsE [varE 'tk, n, xs]
-
--- dropE :: Int -> ExpQ -> ExpQ
--- dropE n xs = appsE [varE 'dp, litE $ integerL $ fromIntegral n, xs]
 
 dropE' :: ExpQ -> ExpQ -> ExpQ
 dropE' n xs = appsE [varE 'dp, n, xs]
@@ -310,16 +268,14 @@ mkData endian bsn body =
 		case (sizeOf item, typeOf item) of
 			(sz, tp) -> varStrictType
 				(mkName $ fromRight $ valueOf endian item) $
-					strictType notStrict $ mkType (isJust sz) tp -- conT ''Int
+					strictType notStrict $
+						mkType (isJust sz) tp
 	isRight item
 		| Right _ <- valueOf endian item = True
 		| otherwise = False
 
 mkType :: Bool -> Type -> TypeQ
 mkType True t = appT listT $ mkType False t
-mkType False Int = conT ''Int
-mkType False String = conT ''String
-mkType False ByteString = conT ''BS.ByteString
 mkType False (Tuple ts) = appsT $ tupleT (length ts) : map (mkType False) ts
 mkType False (Type typ) = conT $ mkName typ
 
@@ -337,8 +293,20 @@ devideN _ [] = []
 devideN n xs = take n xs : devideN n (drop n xs)
 
 class RetType a where
-	fromType :: Str b => a -> b
+	fromType :: Str b => Int -> a -> b
 	toType :: Str b => b -> a
+
+instance RetType Int where
+	fromType = fii
+	toType = tii
+
+instance RetType String where
+	fromType _ = fs
+	toType = ts
+
+instance RetType BS.ByteString where
+	fromType _ = fbs
+	toType = tbs
 
 class Str a where
 	tk :: Int -> a -> a

@@ -100,7 +100,7 @@ drop (4 * 256)
 
 ghc の readFile あるいはその下の getContents の制限がある。
 そこらへんをなんとかしなくてはならない。
-メモリ量の問題だと思うけど。
+メモリ量の問題だと思うけど。			<- ちがった UTF-8 の問題だった。
 
 2013.03.16 Sat.
 
@@ -177,3 +177,35 @@ instance (RecType a, RecType b) => RecType (a, b) where
 
 some_thing のような形を許す。
 また、empty line と comment や複数の comment を許す。
+
+PNG file のような構造を読むために、繰返しが必要かもしれない。
+それと、16進数表記もあったほうがいいな。
+また"\n\r" のような表記もできると便利だ。
+
+[|
+
+PNG
+
+set big_endian
+
+1: 137
+3: "PNG"
+1: 13
+1: 10
+1: 26
+1: 10
+
+repeat {
+
+Chank
+
+4: chankSize
+4<String>: chankName
+chankSize<String>: chankData
+4<Word32>:chankCRC
+
+}
+
+|]
+
+こんな感じ。

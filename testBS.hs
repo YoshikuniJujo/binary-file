@@ -22,7 +22,7 @@ main = do
 tmpBMP = fmap readBitmap $ BS.readFile "tmp.bmp"
 
 instance RetType Int16 where
-	fromType = fi 2 . fromIntegral
+	fromType n = fi n . fromIntegral
 	toType = fromIntegral . ti
 
 [binary|
@@ -48,7 +48,7 @@ Bitmap
 4: importantColors
 4<(Int, Int, Int)>[numberOfColors]: colors
 -- 4[numberOfColors]: colors
-imageSize<ByteString>: image
+imageSize<BS.ByteString>: image
 
 10<String>: author_first
 10<String>: author_second

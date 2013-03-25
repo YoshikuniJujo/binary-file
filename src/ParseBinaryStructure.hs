@@ -71,7 +71,7 @@ constantInt endian (ConstantInt v) = v
 constantInt endian (ConstantString v) = fromIntegral $ readInt endian v
 
 data Type
-	= String | Int | ByteString | Tuple [Type]
+	= Tuple [Type]
 	| Type String
 	deriving (Show, Eq)
 
@@ -148,14 +148,11 @@ dat :: BinaryStructureItem
 				{ binaryStructureItem $1 $2 $3 $5 }
 typ :: Type
 	= [<] typeGen [>]	{ $2 }
-	/ ""			{ Int }
+	/ ""			{ Type "Int" }
 
 typeGen :: Type
 	= [(] tupleGen [)]	{ Tuple $2 }
-	/ "String"		{ String }
-	/ "ByteString"		{ ByteString }
-	/ "Int"			{ Int }
-	/ [A-Z][a-zA-Z0-9]*	{ Type $ $1 : $2 }
+	/ [A-Z][.a-zA-Z0-9]*	{ Type $ $1 : $2 }
 
 tupleGen :: [Type]
 	= typeGen spaces "," spaces tupleGen
