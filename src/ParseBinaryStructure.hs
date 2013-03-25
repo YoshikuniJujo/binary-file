@@ -53,6 +53,7 @@ imageSize<ByteString>: image
 10<String>: author
 10<ByteString>: hoge
 10<Some>: some
+10: "abc\n\r"
 
 |]
 
@@ -191,7 +192,19 @@ val :: Either ConstantValue VariableValue
 	/ stringLit		{ Left $ ConstantString $1 }
 
 stringLit :: String
-	= '\"' [^\"]* '\"'
+	= '\"' strL '\"'
+
+strL :: String
+	= charLit*
+
+charLit :: Char
+	= [^\\\"]
+	/ "\\" escLit
+
+escLit :: Char
+	= "n"			{ '\n' }
+	/ "r"			{ '\r' }
+	/ "\\"			{ '\\' }
 
 var :: String
 	= [a-z][_a-zA-Z0-9]*	{ $1 : $2 }
