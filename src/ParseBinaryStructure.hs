@@ -19,6 +19,7 @@ import Here
 import Control.Arrow
 import Data.Char
 import Language.Haskell.TH hiding (Type)
+import Numeric hiding (readInt)
 
 main :: IO ()
 main = do
@@ -53,7 +54,8 @@ imageSize<ByteString>: image
 10<String>: author
 10<ByteString>: hoge
 10<Some>: some
-10: "abc\n\r"
+10: "abc\n\r\SUB"
+10: 0x89
 
 |]
 
@@ -205,11 +207,14 @@ escLit :: Char
 	= "n"			{ '\n' }
 	/ "r"			{ '\r' }
 	/ "\\"			{ '\\' }
+	/ "SUB"			{ '\SUB' }
 
 var :: String
 	= [a-z][_a-zA-Z0-9]*	{ $1 : $2 }
 
 num :: Int
-	= [0-9]+		{ read $1 }
+	= '0x' [0-9a-fA-F]+	{ fst $ head $ readHex $1 }
+	/ [1-9][0-9]*		{ read $ $1 : $2 }
+	/ '0'			{ 0 }
 
 |]
