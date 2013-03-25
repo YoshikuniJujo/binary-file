@@ -6,3 +6,5 @@
 6. くりかえしの実装
 7. リファクタリング
 8. ByteString を切り離してもいいかもしれない
+9. set big_endian を可能にする
+10. 上のために、Endian の値によって、instance RetType Int の定義を変える

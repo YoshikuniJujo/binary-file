@@ -1,20 +1,41 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE TemplateHaskell, TypeSynonymInstances, FlexibleInstances #-}
 
-module Classes where
+module Classes (
+	RetType(..),
+	Str(..),
+	retTypeInt,
+	fii, fiiBE,
+	tii, tiiBE
+) where
 
 import qualified Data.ByteString as BS
 import ParseBinaryStructure
 import Data.Char
+import Language.Haskell.TH
 
 class RetType a where
 	fromType :: Str b => Int -> a -> b
 	toType :: Str b => b -> a
 	defaultSize :: a -> Int
 
+retTypeInt :: Endian -> DecQ
+retTypeInt endian =
+	instanceD (cxt []) (appT (conT ''RetType) (conT ''Int)) [dfii, dtii]
+	where
+	dfii = valD (varP 'fromType) (normalB $ fiiend) []
+	dtii = valD (varP 'toType) (normalB $ tiiend) []
+	sffx = case endian of
+		LittleEndian -> ""
+		BigEndian -> "BE"
+	fiiend = varE $ mkName $ "fii" ++ sffx
+	tiiend = varE $ mkName $ "tii" ++ sffx
+
+{-
 instance RetType Int where
 	fromType = fii
 	toType = tii
 	defaultSize _ = 1
+-}
 
 instance RetType String where
 	fromType _ = fs

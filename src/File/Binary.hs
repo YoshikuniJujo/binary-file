@@ -3,7 +3,9 @@ module File.Binary (
 	writeBinaryFile,
 	binary,
 	RetType(..),
-	Str(..)
+	Str(..),
+	tii, tiiBE,
+	fii, fiiBE
  ) where
 
 import QuoteBinaryStructure

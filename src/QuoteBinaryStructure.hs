@@ -8,7 +8,9 @@
 module QuoteBinaryStructure (
 	binary,
 	RetType(..),
-	Str(..)
+	Str(..),
+	fii, fiiBE,
+	tii, tiiBE
 ) where
 
 import Prelude hiding (sequence)
@@ -47,7 +49,8 @@ mkHaskellTree BinaryStructure{
 		d <- mkData endian bsn body
 		r <- mkReader endian bsn body
 		w <- mkWriter endian bsn body
-		return [d, r, w]
+		i <- retTypeInt endian
+		return [d, r, w, i]
 
 mkWriter :: Endian -> String -> [BinaryStructureItem] -> DecQ
 mkWriter endian bsn body = do
