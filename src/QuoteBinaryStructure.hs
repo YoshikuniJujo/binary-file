@@ -194,7 +194,8 @@ mkBody endian bsn body cs ret = do
 			(normalB $ takeE'' n $ varE cs') []
 		next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
 		return ([def, next], cs'')
-	    | Right var <- valueOf endian item, Nothing <- sizeOf item = do
+	    | Right var <- valueOf endian item, Nothing <- sizeOf item,
+		String <- typeOf item = do
 		cs'' <- newName "cs"
 		def <- valD (varP $ fromJust $ lookup var np)
 			(normalB $ takeE' n $ varE cs') []
@@ -222,6 +223,17 @@ mkBody endian bsn body cs ret = do
 		next <- valD (varP cs'') (normalB $
 			dropE' (multiE' n $ expression ret expr) $ varE cs') []
 		return ([def, next], cs'')
+	    | Right var <- valueOf endian item, Nothing <- sizeOf item, Tuple ts <- typeOf item =
+		if all (== Int) ts then do
+			cs'' <- newName "cs"
+			def <- valD (varP $ fromJust $ lookup var np)
+				(normalB $ appE (strToTupple $ length ts) $
+--					appsE [varE 'map, strToTupple $ length ts,
+--					appsE [varE 'devideN, n,
+				takeE' n $ varE cs') []
+			next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
+			return ([def, next], cs'')
+		    else error "hogeru"
 	    | otherwise = error $ show $ typeOf item
 	    where
 	    n = expression ret $ bytesOf item
