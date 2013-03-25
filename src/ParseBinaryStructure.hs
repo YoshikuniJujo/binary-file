@@ -68,7 +68,7 @@ data ConstantValue
 	deriving Show
 
 constantInt endian (ConstantInt v) = v
-constantInt endian (ConstantString v) = readInt endian v
+constantInt endian (ConstantString v) = fromIntegral $ readInt endian v
 
 data Type
 	= String | Int | ByteString | Tuple [Type]
@@ -115,9 +115,9 @@ parseBinaryStructure src = case parseString top "<code>" src of
 	Right bs -> bs
 	Left ps -> error $ show ps
 
-readInt :: Endian -> String -> Int
+readInt :: Endian -> String -> Integer
 readInt LittleEndian "" = 0
-readInt LittleEndian (c : cs) = ord c + 2 ^ 8 * readInt LittleEndian cs
+readInt LittleEndian (c : cs) = fromIntegral (ord c) + 2 ^ 8 * readInt LittleEndian cs
 readInt BigEndian str = readInt LittleEndian $ reverse str
 
 [peggy|

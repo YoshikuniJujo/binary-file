@@ -65,15 +65,15 @@ writeField endian bs size Int Nothing (Left n) =
 	appsE [fiend, expression bs size, litE $ integerL $ fromIntegral n]
 	where
 	fiend = case endian of
-		LittleEndian -> varE 'fi
-		BigEndian -> varE 'fiBE
+		LittleEndian -> varE 'fii
+		BigEndian -> varE 'fiiBE
 writeField endian bs bytes typ size (Right v) =
 	fieldValueToStr endian bs bytes (isJust size) typ $ getField bs v
 
 fiend :: Endian -> ExpQ
 fiend endian = case endian of
-	LittleEndian -> varE 'fi
-	BigEndian -> varE 'fiBE
+	LittleEndian -> varE 'fii
+	BigEndian -> varE 'fiiBE
 
 fieldValueToStr :: Endian -> Name -> Expression -> Bool -> Type -> ExpQ -> ExpQ
 fieldValueToStr endian bs size False Int = appE $ appE (fiend endian) (expression bs size)
@@ -132,14 +132,17 @@ newNameList n = liftA2 (:) (newName "x") $ newNameList (n - 1)
 mapTuple :: (Type -> ExpQ) -> [Type] -> ExpQ
 mapTuple f ts = varE 'show
 
+{-
 intToBin :: Endian -> Int -> Int -> String
 intToBin LittleEndian n x = intToBinGen (fromIntegral n) (fromIntegral x)
 intToBin BigEndian n x = reverse $ intToBin LittleEndian n x
+-}
 
-intToBinGen :: Integer -> Integer -> String
-intToBinGen 0 _ = ""
-intToBinGen n x = chr (fromIntegral $ x `mod` 256) :
-	intToBinGen (n - 1) (x `div` 256)
+intToBin :: Endian -> Int -> Integer -> String
+intToBin LittleEndian 0 _ = ""
+intToBin LittleEndian n x = chr (fromIntegral $ x `mod` 256) :
+	intToBin LittleEndian (fromIntegral n - 1) (x `div` 256)
+intToBin BigEndian n x = reverse $ intToBin LittleEndian n x
 
 -- readerType :: String -> DecQ
 -- readerType = sigD (mkName $ "read" ++ bsn) [t| Str a => a ->
@@ -238,8 +241,8 @@ mkBody endian bsn body cs ret = do
 	    where
 	    n = expression ret $ bytesOf item
 	    tiend = case endian of
-		LittleEndian -> varE 'ti
-		BigEndian -> varE 'tiBE
+		LittleEndian -> varE 'tii
+		BigEndian -> varE 'tiiBE
 
 strToTupple :: Int -> ExpQ
 strToTupple n = (toTupple n) `dot` appE (varE 'map) (varE 'ord) `dot`
@@ -344,10 +347,10 @@ class Str a where
 	fs :: String -> a
 	fbs :: BS.ByteString -> a
 	tbs :: a -> BS.ByteString
-	ti :: a -> Int
-	fi :: Int -> Int -> a
-	tiBE :: a -> Int
-	fiBE :: Int -> Int -> a
+	ti :: a -> Integer
+	fi :: Int -> Integer -> a
+	tiBE :: a -> Integer
+	fiBE :: Int -> Integer -> a
 	cc :: [a] -> a
 	zero :: a
 
@@ -364,6 +367,13 @@ instance Str String where
 	fiBE = intToBin BigEndian
 	cc = concat
 	zero = "\0"
+
+fii, fiiBE :: Str a => Int -> Int -> a
+fii n = fi n . fromIntegral
+fiiBE n = fiBE n . fromIntegral
+tii, tiiBE :: Str a => a -> Int
+tii = fromIntegral . ti
+tiiBE = fromIntegral . tiBE
 
 instance Str BS.ByteString where
 	tk = BS.take
