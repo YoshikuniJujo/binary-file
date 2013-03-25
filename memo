@@ -134,3 +134,32 @@ map f [その変数]
 それを listE でまとめて、appE (varE 'cc) でつなげる。
 
 また、それを let (その変数) = exp in (here) の here に入れる。
+
+2013.03.24 Sun.
+次は 1bit 単位での読み書きに対応したい。
+例えば、
+
+4bit: some
+
+のような感じか。
+
+また整数型も Int だけではなく様々な整数型に対応したい。
+
+または、より一般的に class として、多くの型に対応できるようにするか。
+入力の型についても class Binary とでもして、その型を公開しておけば、
+ユーザーが定義した Binary 型からの入力が可能となる。
+ここらへんは良さそうだな。
+FlexibleInstances を利用すれば (Int, Int, Int) も可能だろうし。
+
+その前にコードの整理が必要かもしれない。
+
+2013.03.25 Mon.
+
+big endian への対応が必要。
+
+set big_endian とかかな
+set littele_endian とか。
+また一時的に変化させるために、
+4(BE): hoge
+のような書きかたを使おうかな。
+まずは、set big_endian を使ってみよう。

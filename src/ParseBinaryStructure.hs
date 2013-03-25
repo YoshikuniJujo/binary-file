@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes, FlexibleContexts #-}
 
 module ParseBinaryStructure (
+	Endian(..),
 	BinaryStructure(..),
 	BinaryStructureItem,
 	Expression(..),
@@ -24,6 +25,8 @@ main = do
 	print $ parseBinaryStructure [here|
 
 BitmapFileHeader
+
+set big_endian
 
 2: 19778
 4: fileSize
@@ -63,8 +66,8 @@ data ConstantValue
 	| ConstantString String
 	deriving Show
 
-constantInt (ConstantInt v) = v
-constantInt (ConstantString v) = readInt v
+constantInt endian (ConstantInt v) = v
+constantInt endian (ConstantString v) = readInt endian v
 
 data Type = String | Int | ByteString | Tuple [Type] deriving (Show, Eq)
 
@@ -88,28 +91,18 @@ typeOf = binaryStructureItemType
 sizeOf :: BinaryStructureItem -> Maybe Expression
 sizeOf = binaryStructureItemListSize
 
-valueOf :: BinaryStructureItem -> Either Int String
-valueOf = (constantInt +++ variableValue) . binaryStructureItemValue
+valueOf :: Endian -> BinaryStructureItem -> Either Int String
+valueOf endian = (constantInt endian +++ variableValue) . binaryStructureItemValue
 
 binaryStructureItem :: Expression -> Type -> Maybe Expression ->
 	Either ConstantValue VariableValue -> BinaryStructureItem
 binaryStructureItem = BinaryStructureItem
 
-{-
-type BinaryStructureItem = (Int, Either Int String)
-
-bytesOf :: (Int, Either Int String) -> Int
-bytesOf = fst
-
-valueOf :: (Int, Either Int String) -> Either Int String
-valueOf = snd
-
-binaryStructureItem :: Int -> Either Int String -> BinaryStructureItem
-binaryStructureItem = (,)
--}
+data Endian = BigEndian | LittleEndian deriving Show
 
 data BinaryStructure = BinaryStructure {
 	binaryStructureName :: String,
+	binaryStructureEndian :: Endian,
 	binaryStructureBody :: [BinaryStructureItem]
  } deriving Show
 
@@ -118,15 +111,22 @@ parseBinaryStructure src = case parseString top "<code>" src of
 	Right bs -> bs
 	Left ps -> error $ show ps
 
-readInt :: String -> Int
-readInt "" = 0
-readInt (c : cs) = ord c + 2 ^ 8 * readInt cs
+readInt :: Endian -> String -> Int
+readInt LittleEndian "" = 0
+readInt LittleEndian (c : cs) = ord c + 2 ^ 8 * readInt LittleEndian cs
+readInt BigEndian str = readInt LittleEndian $ reverse str
 
 [peggy|
 
 top :: BinaryStructure
-	= emptyLines name emptyLines dat*
-				{ BinaryStructure $2 $4 }
+	= emptyLines name emptyLines endian emptyLines dat*
+				{ BinaryStructure $2 $4 $6 }
+	/ emptyLines name emptyLines dat*
+				{ BinaryStructure $2 LittleEndian $4 }
+
+endian :: Endian
+	= "set" spaces "big_endian"
+				{ BigEndian }
 
 emptyLines :: ()
 	= "--" [^\n]* [\n]	{ () }
