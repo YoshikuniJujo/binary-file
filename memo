@@ -163,3 +163,17 @@ set littele_endian とか。
 4(BE): hoge
 のような書きかたを使おうかな。
 まずは、set big_endian を使ってみよう。
+
+class RetType a where
+	readRet :: Str b -> a
+
+のようなクラスを作ろうかな。
+それで FlexibleInstances を利用して、
+
+instance (RecType a, RecType b) => RecType (a, b) where
+	...
+
+のような instance を 2 - 16 くらいまで作るのはどうか。
+
+some_thing のような形を許す。
+また、empty line と comment や複数の comment を許す。

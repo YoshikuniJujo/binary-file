@@ -6,7 +6,9 @@
 	FlexibleInstances #-}
 
 module QuoteBinaryStructure (
-	binary
+	binary,
+	RetType(..),
+	Str(..)
 ) where
 
 import Prelude hiding (sequence)
@@ -98,16 +100,7 @@ fieldValueToStr endian bs size True (Tuple ts) = \val -> do
 	where
 	addZero = -- appE $ addZeros 1
 		appE $ correctSize' $ expression bs size
-{-
-	let	ps = tupP $ map varP nl
-		bdy = zipWith (fieldValueToStr bs (Number 1) False) ts $ map varE nl
-	 in	appE (varE 'cc) $ appE (correctSize' $ expression bs size) $ appsE [
-			varE 'map, lamE [ps] $ appE (varE 'cc) $ listE bdy, val]
--}
-{-
-	 in	appE (varE 'cc) $ correctSize (expression bs size) $ appsE [
-			varE 'map, lamE [ps] $ appE (varE 'cc) $ listE bdy, val]
--}
+fieldValueToStr endian bs size False (Type typ) = appE $ varE 'fromType
 
 addZeros :: Int -> ExpQ
 addZeros ln = do
@@ -234,6 +227,13 @@ mkBody endian bsn body cs ret = do
 			next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
 			return ([def, next], cs'')
 		    else error "hogeru"
+	    | Right var <- valueOf endian item, Nothing <- sizeOf item,
+		Type typ <- typeOf item = do
+		cs'' <- newName "cs"
+		def <- valD (varP $ fromJust $ lookup var np)
+			(normalB $ appE (varE 'toType) $ takeE' n $ varE cs') []
+		next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
+		return ([def, next], cs'')
 	    | otherwise = error $ show $ typeOf item
 	    where
 	    n = expression ret $ bytesOf item
@@ -318,6 +318,7 @@ mkType False Int = conT ''Int
 mkType False String = conT ''String
 mkType False ByteString = conT ''BS.ByteString
 mkType False (Tuple ts) = appsT $ tupleT (length ts) : map (mkType False) ts
+mkType False (Type typ) = conT $ mkName typ
 
 appsT :: [TypeQ] -> TypeQ
 appsT [t] = t
@@ -331,6 +332,10 @@ fromRight = either (error "not Right") id
 devideN :: Int -> [a] -> [[a]]
 devideN _ [] = []
 devideN n xs = take n xs : devideN n (drop n xs)
+
+class RetType a where
+	fromType :: Str b => a -> b
+	toType :: Str b => b -> a
 
 class Str a where
 	tk :: Int -> a -> a

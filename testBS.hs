@@ -3,6 +3,7 @@
 import File.Binary
 import System.Environment
 import qualified Data.ByteString as BS
+import Data.Int
 
 main = do
 	[inf] <- getArgs
@@ -12,13 +13,17 @@ main = do
 	putStrLn $ (++ "...") $ take 4000 $ show $ readBitmap cnt
 
 	let out = writeBitmap bmp {
-		authorFirst = "Yoshikuni ",
-		authorSecond = "Jujo      "
+		author_first = "Yoshikuni ",
+		author_second = "Jujo      "
 	 }
 
 	BS.writeFile "tmp.bmp" out
 
 tmpBMP = fmap readBitmap $ BS.readFile "tmp.bmp"
+
+instance RetType Int16 where
+	fromType = fi 2 . fromIntegral
+	toType = fromIntegral . ti
 
 [binary|
 
@@ -34,7 +39,7 @@ Bitmap
 4: bitmapWidth
 4: bitmapHeight
 2: 1
-2: bitsPerPixel
+2<Int16>: bitsPerPixel
 4: compressionMethod
 4: imageSize
 4: horizontalResolution
@@ -45,7 +50,7 @@ Bitmap
 -- 4[numberOfColors]: colors
 imageSize<ByteString>: image
 
-10<String>: authorFirst
-10<String>: authorSecond
+10<String>: author_first
+10<String>: author_second
 
 |]

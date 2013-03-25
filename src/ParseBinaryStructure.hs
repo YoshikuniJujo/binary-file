@@ -51,6 +51,7 @@ set big_endian
 imageSize<ByteString>: image
 10<String>: author
 10<ByteString>: hoge
+10<Some>: some
 
 |]
 
@@ -69,7 +70,10 @@ data ConstantValue
 constantInt endian (ConstantInt v) = v
 constantInt endian (ConstantString v) = readInt endian v
 
-data Type = String | Int | ByteString | Tuple [Type] deriving (Show, Eq)
+data Type
+	= String | Int | ByteString | Tuple [Type]
+	| Type String
+	deriving (Show, Eq)
 
 data VariableValue
 	= VariableValue { variableValue :: String }
@@ -151,6 +155,7 @@ typeGen :: Type
 	/ "String"		{ String }
 	/ "ByteString"		{ ByteString }
 	/ "Int"			{ Int }
+	/ [A-Z][a-zA-Z0-9]*	{ Type $ $1 : $2 }
 
 tupleGen :: [Type]
 	= typeGen spaces "," spaces tupleGen
@@ -176,7 +181,7 @@ stringL :: String
 	= '\"' [^\"]* '\"'
 
 var :: String
-	= [a-z][a-zA-Z0-9]*	{ $1 : $2 }
+	= [a-z][_a-zA-Z0-9]*	{ $1 : $2 }
 
 num :: Int
 	= [0-9]+		{ read $1 }
