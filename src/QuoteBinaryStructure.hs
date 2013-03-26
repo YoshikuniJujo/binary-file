@@ -130,13 +130,17 @@ mkReader endian bsn body = do
 			mkBody endian bsn body cs) []]
 
 mkLetRec :: Name -> (Name -> ExpQ) -> ExpQ
-mkLetRec n f = letE [valD (varP n) (normalB $ f n) []] $ varE n
+mkLetRec n f = do
+	rest <- newName "rest"
+	letE [valD (tupP [varP n, varP rest]) (normalB $ f n) []] $
+		tupE [varE n, varE rest]
 
 mkBody :: Endian -> String -> [BinaryStructureItem] -> Name -> Name -> ExpQ
 mkBody endian bsn body cs ret = do
 	namePairs <- for names $ \n -> return . (n ,) =<< newName "tmp"
-	defs <- gather cs body $ mkDef namePairs
-	letE (map return defs) $ recConE (mkName bsn) (map toPair2 namePairs)
+	(defs, rest) <- gather cs body $ mkDef namePairs
+	letE (map return defs) $ tupE
+		[recConE (mkName bsn) (map toPair2 namePairs), varE rest]
 	where
 	names = rights $ map (valueOf endian) body
 	toPair2 (n, nn) = return $ (mkName n, VarE nn)
@@ -158,22 +162,12 @@ mkBody endian bsn body cs ret = do
 				[(varE 'times), expression ret expr,
 					appE (varE 'toType) arg, varE cs']))
 				[]
-{-
-		def <- valD (varP $ fromJust $ lookup var np)
-			(normalB $ appE (varE 'fst) $ 
-				appsE [varE 'map, tiend',
-				appsE [varE 'devideN, n,
-			takeE' (multiE' n $ expression ret expr) $ varE cs']]) []
-		next <- valD (varP cs'') (normalB $
-			dropE' (multiE' n $ expression ret expr) $ varE cs') []
--}
 		return ([def], cs'')
 	    | Right var <- valueOf endian item, Nothing <- sizeOf item,
 		Type typ <- typeOf item = do
 		cs'' <- newName "cs"
 		def <- valD (tupP [varP $ fromJust $ lookup var np, varP cs''])
 			(normalB $ appE (appE (varE 'toType) arg) $ varE cs') []
---		next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
 		return ([def], cs'')
 	    | otherwise = error $ show $ typeOf item
 	    where
@@ -231,12 +225,12 @@ takeE'' n xs = appE (varE 'tbs) $ appsE [varE 'tk, n, xs]
 dropE' :: ExpQ -> ExpQ -> ExpQ
 dropE' n xs = appsE [varE 'dp, n, xs]
 
-gather :: Monad m => s -> [a] -> (a -> s -> m ([b], s)) -> m [b]
-gather s [] f = return []
+gather :: Monad m => s -> [a] -> (a -> s -> m ([b], s)) -> m ([b], s)
+gather s [] f = return ([], s)
 gather s (x : xs) f = do
 	(ys, s') <- f x s
-	zs <- gather s' xs f
-	return $ ys ++ zs
+	(zs, s'') <- gather s' xs f
+	return $ (ys ++ zs, s'')
 
 makeData :: BinaryStructure -> DecsQ
 makeData BinaryStructure{

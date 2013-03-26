@@ -11,14 +11,14 @@ main = do
 	[inf] <- getArgs
 	cnt <- BS.readFile inf
 
-	let bmp = readBitmap $ cnt `BS.append` "                      "
+	let (bmp, rest) = readBitmap $ cnt `BS.append` "  rest                "
 	putStrLn $ (++ "...") $ take 4000 $ show $ bmp
 	putStrLn $ (++ "...") $ show $ bmp
+	print rest
 
 	let out = writeBitmap bmp {
 		author_first = "Yoshikuni ",
-		author_second = "Jujo      ",
-		rest = ""
+		author_second = "Jujo      "
 	 }
 
 	BS.writeFile "tmp/out.bmp" out
@@ -71,6 +71,6 @@ imageSize<BS.ByteString>: image
 
 ((), Just 10)<String>: author_first
 ((), Just 10)<String>: author_second
-((), Nothing)<String>: rest
+-- ((), Nothing)<String>: rest
 
 |]
