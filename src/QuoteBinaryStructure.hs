@@ -10,7 +10,8 @@ module QuoteBinaryStructure (
 	RetType(..),
 	Str(..),
 	fii, fiiBE,
-	tii, tiiBE
+	tii, tiiBE,
+	times
 ) where
 
 import Prelude hiding (sequence)
@@ -50,7 +51,7 @@ mkHaskellTree BinaryStructure{
 		r <- mkReader endian bsn body
 		w <- mkWriter endian bsn body
 		i <- retTypeInt endian
-		return [d, r, w, i]
+		return $ d ++ [r, w]
 
 mkWriter :: Endian -> String -> [BinaryStructureItem] -> DecQ
 mkWriter endian bsn body = do
@@ -145,34 +146,43 @@ mkBody endian bsn body cs ret = do
 	    | Left val <- valueOf endian item = do
 		cs'' <- newName "cs"
 		let t = dropE' n $ varE cs'
-		let p = val `equal` appE tiend (takeE' n $ varE cs')
+		let p = val `equal` appE (varE 'fst)
+			(appE tiend $ takeE' n $ varE cs')
 		let e = [e| error "bad value" |]
 		d <- valD (varP cs'') (normalB $ condE p t e) []
 		return ([d], cs'')
 	    | Right var <- valueOf endian item, Just expr <- sizeOf item = do
 		cs'' <- newName "cs"
+		def <- valD (tupP [varP $ fromJust $ lookup var np, varP cs''])
+			(normalB (appsE
+				[(varE 'times), expression ret expr,
+					appE (varE 'toType) arg, varE cs']))
+				[]
+{-
 		def <- valD (varP $ fromJust $ lookup var np)
-			(normalB $
+			(normalB $ appE (varE 'fst) $ 
 				appsE [varE 'map, tiend',
 				appsE [varE 'devideN, n,
 			takeE' (multiE' n $ expression ret expr) $ varE cs']]) []
 		next <- valD (varP cs'') (normalB $
 			dropE' (multiE' n $ expression ret expr) $ varE cs') []
-		return ([def, next], cs'')
+-}
+		return ([def], cs'')
 	    | Right var <- valueOf endian item, Nothing <- sizeOf item,
 		Type typ <- typeOf item = do
 		cs'' <- newName "cs"
-		def <- valD (varP $ fromJust $ lookup var np)
-			(normalB $ appE (varE 'toType) $ takeE' n $ varE cs') []
-		next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
-		return ([def, next], cs'')
+		def <- valD (tupP [varP $ fromJust $ lookup var np, varP cs''])
+			(normalB $ appE (appE (varE 'toType) arg) $ varE cs') []
+--		next <- valD (varP cs'') (normalB $ dropE' n $ varE cs') []
+		return ([def], cs'')
 	    | otherwise = error $ show $ typeOf item
 	    where
 	    n = expression ret $ bytesOf item
 	    tiend' = varE 'toType
 	    tiend = case endian of
-		LittleEndian -> varE 'tii
-		BigEndian -> varE 'tiiBE
+		LittleEndian -> appE (varE 'tii) (litE $ integerL 4)
+		BigEndian -> appE (varE 'tiiBE) (litE $ integerL 4)
+	    arg = expression ret $ bytesOf item
 
 strToTupple :: Int -> ExpQ
 strToTupple n = (toTupple n) `dot` appE (varE 'map) (varE 'ord) `dot`
@@ -191,6 +201,8 @@ expression ret (Variable v) = appE (varE $ mkName v) (varE ret)
 expression _ (Number n) = litE $ integerL $ fromIntegral n
 expression ret (Division x y) = divE (expression ret x) (expression ret y)
 expression ret (Multiple x y) = multiE' (expression ret x) (expression ret y)
+expression ret (Addition x y) = addE' (expression ret x) (expression ret y)
+expression ret (ExpressionQ e) = e ret
 
 getField :: Name -> String -> ExpQ
 getField bs v = appE (varE $ mkName v) (varE bs)
@@ -200,6 +212,9 @@ multiE x y = infixE (Just $ litE $ integerL $ fromIntegral x) (varE '(*)) (Just 
 
 multiE' :: ExpQ -> ExpQ -> ExpQ
 multiE' x y = infixE (Just x) (varE '(*)) (Just y)
+
+addE' :: ExpQ -> ExpQ -> ExpQ
+addE' x y = infixE (Just x) (varE '(+)) (Just y)
 
 divE :: ExpQ -> ExpQ -> ExpQ
 divE x y = infixE (Just x) (varE 'div) (Just y)
@@ -223,9 +238,27 @@ gather s (x : xs) f = do
 	zs <- gather s' xs f
 	return $ ys ++ zs
 
-mkData :: Endian -> String -> [BinaryStructureItem] -> DecQ
-mkData endian bsn body =
-	dataD (cxt []) name [] [con] [''Show]
+makeData :: BinaryStructure -> DecsQ
+makeData BinaryStructure{
+	binaryStructureName = bsn,
+	binaryStructureEndian = endian,
+	binaryStructureBody = body } = mkData endian bsn body
+
+mkInstance :: String -> DecQ
+mkInstance name =
+	instanceD (cxt []) (appT (conT ''RetType) (conT $ mkName name)) [
+		valD (varP $ 'fromType)
+			(normalB $ varE $ mkName $ "write" ++ name) [],
+		valD (varP $ 'toType)
+			(normalB $ varE $ mkName $ "read" ++ name) []
+	 ]
+
+mkData :: Endian -> String -> [BinaryStructureItem] -> DecsQ
+mkData endian bsn body = do
+	d <- dataD (cxt []) name [] [con] [''Show]
+	mkInstance bsn
+	ds <- mapM makeData $ map getRepeat $ filter isRepeat body
+	return $ [d] ++ concat ds
 	where
 	name = mkName bsn
 	con = recC (mkName bsn) vsts
@@ -256,3 +289,10 @@ fromRight = either (error "not Right") id
 devideN :: Int -> [a] -> [[a]]
 devideN _ [] = []
 devideN n xs = take n xs : devideN n (drop n xs)
+
+times :: Int -> (s -> (ret, s)) -> s -> ([ret], s)
+times 0 _ s = ([], s)
+times n f s = let
+	(ret, rest) = f s
+	(rets, rest') = times (n - 1) f rest in
+	(ret : rets, rest')

@@ -2,7 +2,7 @@ build-type:	Simple
 cabal-version:	>= 1.8
 
 name:		binary-file
-version:	0.12.2
+version:	0.12.3
 stability:	experimental
 author:		Yoshikuni Jujo <PAF01143@nifty.ne.jp>
 maintainer:	Yoshikuni Jujo <PAF01143@nifty.ne.jp>
@@ -72,7 +72,9 @@ source-repository	head
 
 library
     hs-source-dirs:	src
-    exposed-modules:	File.Binary
+    exposed-modules:	File.Binary,
+        File.Binary.Data.LittleEndian,
+        File.Binary.Data.BigEndian
     other-modules:	QuoteBinaryStructure, ParseBinaryStructure, Here, Classes
     build-depends:	base > 3 && < 5, template-haskell, peggy, bytestring
     ghc-options:	-Wall

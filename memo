@@ -209,3 +209,37 @@ chankSize<String>: chankData
 |]
 
 こんな感じ。
+
+2013.03.26 Tue.
+
+問題は、サイズを自分で決められないものと、逆に先に決められないものがあるということ。
+解決策は、toType において、Maybe Int でサイズの引数を取るということだろう。
+ただ、型の選択を含めた、より大きな解決策の一部とできないかという点に考慮が必要。
+type family を使って、引数をそれぞれの型で決められるようにしておけば、
+たとえば String 型を取って、それによってどの型を読み込むか決めることができそうに思う。
+
+4<Int>: chankSize
+4<String>: chankName
+(chankSize, chankName)<ManyChanks>: chankBody
+4<Word32>:chankCRC
+
+こんな感じにしておき、
+
+class RetType r where
+	type Argument r
+	fromType :: Str s => r -> s
+	toType :: Argument r -> s -> (r, s)
+
+instance RetType ManyChanks where
+	type Argument ManyChanks = (Int, String)
+	fromType (Chank1 c1) = fromType c1
+	toType (n, "Chank1") = Chank1 $ toType n c1
+
+これは良さげだな。
+
+Classes は別に読めるようにしておいたほうが便利かもしれない。
+そうすれば String, Int 等に独自の実装ができる。
+別々でも読めるけど、File.Binary はそれを set で読み込むようにしておこうかな。
+File.Binary.Types と File.Binary.Quote を作り、File.Binary
+がそれら両方を読むことにする。
+あるいは、File.Binary.Types.LittleEndian と、File.Binary.Types.BigEndian とか。

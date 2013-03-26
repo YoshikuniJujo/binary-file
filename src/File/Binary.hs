@@ -6,6 +6,7 @@ module File.Binary (
 	Str(..),
 	tii, tiiBE,
 	fii, fiiBE
+--	times
  ) where
 
 import QuoteBinaryStructure
