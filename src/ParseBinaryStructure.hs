@@ -6,7 +6,6 @@ module ParseBinaryStructure (
 	BinaryStructure(..),
 	BinaryStructureItem,
 	Expression(..),
-	Type(..),
 	bytesOf,
 	typeOf,
 	sizeOf,
@@ -100,10 +99,7 @@ data ConstantValue
 constantInt endian (ConstantInt v) = v
 constantInt endian (ConstantString v) = fromIntegral $ readInt endian v
 
-data Type
-	= Type { typeQ :: TypeQ } -- String
-
-instance Show Type where
+instance Show TypeQ where
 	show _ = "Type"
 
 data VariableValue
@@ -113,7 +109,7 @@ data VariableValue
 data BinaryStructureItem
 	= BinaryStructureItem {
 		binaryStructureItemBytes :: Expression,
-		binaryStructureItemType :: Type,
+		binaryStructureItemType :: TypeQ,
 		binaryStructureItemListSize :: Maybe Expression, -- (Either Int String),
 		binaryStructureItemValue :: Either ConstantValue VariableValue -- Int String
 	 }
@@ -128,9 +124,9 @@ bytesOf (Repeat BinaryStructure{binaryStructureBody = body}) =
 	sumExp $ map bytesOf body
 bytesOf BinaryStructureItem { binaryStructureItemBytes = b } = b
 
-typeOf :: BinaryStructureItem -> Type
+typeOf :: BinaryStructureItem -> TypeQ
 typeOf (Repeat BinaryStructure{binaryStructureName = name}) =
-	Type $ appT listT $ conT $ mkName name
+	appT listT $ conT $ mkName name
 typeOf BinaryStructureItem{binaryStructureItemType = t} = t
 
 sizeOf :: BinaryStructureItem -> Maybe Expression
@@ -143,7 +139,7 @@ valueOf endian BinaryStructureItem { binaryStructureItemValue = v } =
 valueOf endian (Repeat BinaryStructure{binaryStructureName = name}) =
 	Right $ "repeat" ++ name
 
-binaryStructureItem :: Expression -> Type -> Maybe Expression ->
+binaryStructureItem :: Expression -> TypeQ -> Maybe Expression ->
 	Either ConstantValue VariableValue -> BinaryStructureItem
 binaryStructureItem = BinaryStructureItem
 
@@ -196,15 +192,14 @@ dat :: BinaryStructureItem
 				{ binaryStructureItem $1 $2 $3 $5 }
 	/ "repeat" spaces "{" top "}"
 				{ Repeat $2 }
-typ :: Type
+typ :: TypeQ
 	= [<] typeGen [>]	{ $2 }
-	/ ""			{ Type $ conT $ mkName "Int" }
+	/ ""			{ conT $ mkName "Int" }
 
-typeGen :: Type
-	= [(] tupleGen_ [)]	{ Type $ tupT $2 }
-	/ [\[] typeGen [\]]	{ Type $ appT listT $ typeQ $2 }
---	= [(] tupleGen [)]	{ Tuple $2 }
-	/ [A-Z][.a-zA-Z0-9]*	{ Type $ conT $ mkName $ $1 : $2 }
+typeGen :: TypeQ
+	= [(] tupleGen_ [)]	{ tupT $2 }
+	/ [\[] typeGen [\]]	{ appT listT $ $2 }
+	/ [A-Z][.a-zA-Z0-9]*	{ conT $ mkName $ $1 : $2 }
 
 typeGen_ :: TypeQ
 	= [A-Z][.a-zA-Z0-9]*	{ conT $ mkName $ $1 : $2 }
@@ -215,7 +210,7 @@ tupleGen_ :: [TypeQ]
 	/ typeGen_ spaces "," spaces typeGen_
 				{ [$1, $4] }
 
-tupleGen :: [Type]
+tupleGen :: [TypeQ]
 	= typeGen spaces "," spaces tupleGen
 				{ $1 : $4 }
 	/ typeGen spaces "," spaces typeGen

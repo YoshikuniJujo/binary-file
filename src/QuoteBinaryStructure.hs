@@ -63,9 +63,9 @@ mkWriter endian bsn body = do
 	funD (mkName $ "write" ++ bsn)
 		[clause [varP bs] (normalB run) []]
 
-writeField :: Endian -> Name -> Expression -> Type -> Maybe Expression ->
+writeField :: Endian -> Name -> Expression -> TypeQ -> Maybe Expression ->
 	Either Int String -> ExpQ
-writeField endian bs size (Type _) Nothing (Left n) =
+writeField endian bs size _ Nothing (Left n) =
 	appsE [fiend, expression bs size, litE $ integerL $ fromIntegral n]
 	where
 	fiend = case endian of
@@ -79,8 +79,8 @@ fiend endian = case endian of
 	LittleEndian -> varE 'fii
 	BigEndian -> varE 'fiiBE
 
-fieldValueToStr :: Endian -> Name -> Expression -> Bool -> Type -> ExpQ -> ExpQ
-fieldValueToStr endian bs size False (Type typ) =
+fieldValueToStr :: Endian -> Name -> Expression -> Bool -> TypeQ -> ExpQ -> ExpQ
+fieldValueToStr endian bs size False typ =
 	appE $ appE (varE 'fromType) (expression bs size)
 fieldValueToStr endian bs size True typ = \val -> do
 	runIO $ do
@@ -118,7 +118,7 @@ newNameList :: Int -> Q [Name]
 newNameList 0 = return []
 newNameList n = liftA2 (:) (newName "x") $ newNameList (n - 1)
 
-mapTuple :: (Type -> ExpQ) -> [Type] -> ExpQ
+mapTuple :: (TypeQ -> ExpQ) -> [TypeQ] -> ExpQ
 mapTuple f ts = varE 'show
 
 mkReader :: Endian -> String -> [BinaryStructureItem] -> DecQ
@@ -164,7 +164,7 @@ mkBody endian bsn body cs ret = do
 				[]
 		return ([def], cs'')
 	    | Right var <- valueOf endian item, Nothing <- sizeOf item,
-		Type typ <- typeOf item = do
+		typ <- typeOf item = do
 		cs'' <- newName "cs"
 		def <- valD (tupP [varP $ fromJust $ lookup var np, varP cs''])
 			(normalB $ appE (appE (varE 'toType) arg) $ varE cs') []
@@ -262,16 +262,13 @@ mkData endian bsn body = do
 		| Right _ <- valueOf endian item = True
 		| otherwise = False
 
-mkType :: Bool -> Type -> TypeQ
+mkType :: Bool -> TypeQ -> TypeQ
 mkType True t = appT listT $ mkType False t
-mkType False (Type typ) = typ
+mkType False typ = typ
 
 appsT :: [TypeQ] -> TypeQ
 appsT [t] = t
 appsT (t1 : t2 : ts) = appsT (appT t1 t2 : ts)
-
-mkTupleReader :: [Type] -> ExpQ
-mkTupleReader _ = varE 'show
 
 fromRight = either (error "not Right") id
 
