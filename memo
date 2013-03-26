@@ -243,3 +243,7 @@ Classes は別に読めるようにしておいたほうが便利かもしれな
 File.Binary.Types と File.Binary.Quote を作り、File.Binary
 がそれら両方を読むことにする。
 あるいは、File.Binary.Types.LittleEndian と、File.Binary.Types.BigEndian とか。
+
+外部からの argument を読み込めるようにする。
+つまり、fromType や toType がそのまま write... や read... となるようにする?
+その場合、引数の型を指定してやる必要がある。
