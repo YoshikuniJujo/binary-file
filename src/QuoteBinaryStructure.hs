@@ -191,7 +191,7 @@ toTupple n = do
 	lam1E (listP $ map varP nl) (tupE $ map varE nl)
 
 expression :: Name -> Expression -> ExpQ
-expression ret (ExpressionQ e) = e ret
+expression ret e = e ret
 
 getField :: Name -> String -> ExpQ
 getField bs v = appE (varE $ mkName v) (varE bs)

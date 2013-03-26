@@ -1,4 +1,5 @@
-{-# LANGUAGE TemplateHaskell, QuasiQuotes, FlexibleContexts #-}
+{-# LANGUAGE TemplateHaskell, QuasiQuotes, FlexibleContexts, TypeSynonymInstances,
+	FlexibleInstances #-}
 
 module ParseBinaryStructure (
 	Endian(..),
@@ -13,7 +14,7 @@ module ParseBinaryStructure (
 	parseBinaryStructure,
 	readInt,
 	isRepeat,
-	getRepeat
+	getRepeat,
 ) where
 
 import Text.Peggy
@@ -73,8 +74,7 @@ chankSize<String>: chankData
 
 |]
 
-data Expression
-	= ExpressionQ {expressionQ :: Name -> ExpQ}
+type Expression	= Name -> ExpQ
 
 multi, divi, addi :: Expression -> Expression -> Expression
 multi = applyOp '(*)
@@ -82,14 +82,14 @@ divi = applyOp '(/)
 addi = applyOp '(+)
 
 applyOp :: Name -> Expression -> Expression -> Expression
-applyOp op e1 e2 = ExpressionQ $ \ret ->
-	infixApp (expressionQ e1 ret) (varE op) (expressionQ e2 ret)
+applyOp op e1 e2 = \ret ->
+	infixApp (e1 ret) (varE op) (e2 ret)
 
 instance Show Expression where
 	show _ = "Expression"
 
 sumExp :: [Expression] -> Expression
-sumExp [] = ExpressionQ $ const $ litE $ integerL 0
+sumExp [] = const $ litE $ integerL 0
 sumExp (e1 : e2) = addi e1 $ sumExp e2
 
 data ConstantValue
@@ -101,7 +101,6 @@ constantInt endian (ConstantInt v) = v
 constantInt endian (ConstantString v) = fromIntegral $ readInt endian v
 
 data Type
---	= Tuple [Type]
 	= Type { typeQ :: TypeQ } -- String
 
 instance Show Type where
@@ -222,25 +221,25 @@ tupleGen :: [Type]
 	/ typeGen spaces "," spaces typeGen
 				{ [$1, $4] }
 
---	= [\(] [\)]		{ ExpressionQ $ const $ conE $ mkName "()" }
+--	= [\(] [\)]		{ const $ conE $ mkName "()" }
 expr :: Expression
 	= expr '*' expr		{ multi $1 $2 }
 	/ expr '/' expr		{ divi $1 $2 }
 	/ expr '+' expr		{ addi $1 $2 }
-	/ num			{ ExpressionQ $ const $ litE $ integerL $ fromIntegral $1 }
-	/ var			{ ExpressionQ $ appE (varE $ mkName $1) . varE }
-	/ [(] tupleExpr [)]	{ ExpressionQ $2 }
-	/ 'Just' spaces expr	{ ExpressionQ $ \ret -> appE (conE $ mkName "Just") $
-					expressionQ $2 ret }
-	/ 'Nothing'		{ ExpressionQ $ const $ conE $ mkName "Nothing" }
+	/ num			{ const $ litE $ integerL $ fromIntegral $1 }
+	/ var			{ appE (varE $ mkName $1) . varE }
+	/ [(] tupleExpr [)]	{ $2 }
+	/ 'Just' spaces expr	{ \ret -> appE (conE $ mkName "Just") $
+					$2 ret }
+	/ 'Nothing'		{ const $ conE $ mkName "Nothing" }
 
 --	/ [(] expr ', ' expr [)]
---				{ ExpressionQ $ \ret -> tupE
---					[expressionQ $2 ret, expressionQ $3 ret] }
+--				{ \ret -> tupE
+--					[$2 ret, $3 ret] }
 
 tupleExpr :: Name -> ExpQ
 	= expr ', ' expr	{ \ret -> tupE
-					[expressionQ $1 ret, expressionQ $2 ret] }
+					[$1 ret, $2 ret] }
 	/ ""			{ const $ conE $ mkName "()" }
 
 size :: Expression
