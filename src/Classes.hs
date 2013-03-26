@@ -10,13 +10,21 @@ module Classes (
 	Str(..),
 	fii, fiiBE,
 	tii, tiiBE,
-	Endian(..)
+	Endian(..),
+	readInt
 ) where
 
 import qualified Data.ByteString as BS
-import ParseBinaryStructure
+-- import ParseBinaryStructure
 import Data.Char
 import Language.Haskell.TH
+
+data Endian = BigEndian | LittleEndian deriving Show
+
+readInt :: Endian -> String -> Integer
+readInt LittleEndian "" = 0
+readInt LittleEndian (c : cs) = fromIntegral (ord c) + 2 ^ 8 * readInt LittleEndian cs
+readInt BigEndian str = readInt LittleEndian $ reverse str
 
 class RetType r where
 	type Argument r

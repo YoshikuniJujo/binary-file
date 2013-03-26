@@ -27,7 +27,7 @@ import Data.Char
 import Data.Bits
 
 import ParseBinaryStructure
-import Classes
+-- import Classes
 
 import qualified Data.ByteString as BS
 

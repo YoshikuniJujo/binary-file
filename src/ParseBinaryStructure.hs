@@ -12,6 +12,10 @@ module ParseBinaryStructure (
 	valueOf,
 	parseBinaryStructure,
 	readInt,
+	Str(..),
+	RetType(..),
+	fii, fiiBE,
+	tii, tiiBE
 ) where
 
 import Text.Peggy
@@ -20,6 +24,8 @@ import Control.Arrow
 import Data.Char
 import Language.Haskell.TH hiding (Type)
 import Numeric hiding (readInt)
+
+import Classes
 
 main :: IO ()
 main = do
@@ -130,8 +136,6 @@ binaryStructureItem :: Expression -> TypeQ -> Maybe Expression ->
 	Either ConstantValue VariableValue -> BinaryStructureItem
 binaryStructureItem = BinaryStructureItem
 
-data Endian = BigEndian | LittleEndian deriving Show
-
 data BinaryStructure = BinaryStructure {
 	binaryStructureName :: String,
 	binaryStructureEndian :: Endian,
@@ -142,11 +146,6 @@ parseBinaryStructure :: String -> BinaryStructure
 parseBinaryStructure src = case parseString top "<code>" src of
 	Right bs -> bs
 	Left ps -> error $ show ps
-
-readInt :: Endian -> String -> Integer
-readInt LittleEndian "" = 0
-readInt LittleEndian (c : cs) = fromIntegral (ord c) + 2 ^ 8 * readInt LittleEndian cs
-readInt BigEndian str = readInt LittleEndian $ reverse str
 
 tupT :: [TypeQ] -> TypeQ
 tupT ts = foldl appT (tupleT $ length ts) ts
