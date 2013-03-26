@@ -85,6 +85,6 @@ library
     exposed-modules:	File.Binary,
         File.Binary.Data.LittleEndian,
         File.Binary.Data.BigEndian
-    other-modules:	QuoteBinaryStructure, ParseBinaryStructure, Here, Classes
+    other-modules:	QuoteBinaryStructure, ParseBinaryStructure, Classes
     build-depends:	base > 3 && < 5, template-haskell, peggy, bytestring
     ghc-options:	-Wall
