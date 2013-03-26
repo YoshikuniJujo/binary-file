@@ -124,8 +124,8 @@ CHRM
 
 PLTE
 
--- size :: Int
+-- <Int>
 
--- ((), size)<[(Int, Int, Int)]>: colors
+-- ((), arg)<[(Int, Int, Int)]>: colors
 
 |]
