@@ -8,7 +8,6 @@
 module Classes (
 	RetType(..),
 	Str(..),
-	retTypeInt,
 	fii, fiiBE,
 	tii, tiiBE,
 	Endian(..)
@@ -30,32 +29,6 @@ instance RetType r => RetType [r] where
 	toType (a, Just b) s = (b `times` toType a) s
 	toType (a, Nothing) s = whole (toType a) s
 
-retTypeInt :: Endian -> DecsQ
-retTypeInt endian = fmap (:[]) $
-	instanceD (cxt []) (appT (conT ''RetType) (conT ''Int)) [argt, dfii, dtii]
-	where
-	argt = tySynInstD ''Argument [conT ''Int] $ conT ''Int
-	dfii = valD (varP 'fromType) (normalB $ fiiend) []
-	dtii = valD (varP 'toType) (normalB $ tiiend) []
-	sffx = case endian of
-		LittleEndian -> ""
-		BigEndian -> "BE"
-	fiiend = varE $ mkName $ "fii" ++ sffx
-	tiiend = varE $ mkName $ "tii" ++ sffx
-
-{-
-instance RetType Int where
-	fromType = fii
-	toType = tii
--}
-
-{-
-instance RetType String where
-	type Argument String = Int
-	fromType _ = fs
-	toType _ str = (ts str, undefined)
--}
-
 instance RetType Char where
 	type Argument Char = ()
 	fromType _ = fs . (: [])
@@ -65,7 +38,6 @@ instance RetType BS.ByteString where
 	type Argument BS.ByteString = Int
 	fromType _ = fbs
 	toType n str = (tbs $ tk n str, dp n str)
---	toType n str = (tbs $ tk n str, fs $ show (len str) ++ show n ++ "hoge hoge hage hage ") -- dp n str)
 
 class Str a where
 	tk :: Int -> a -> a

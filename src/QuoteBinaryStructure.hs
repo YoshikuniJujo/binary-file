@@ -50,7 +50,6 @@ mkHaskellTree BinaryStructure{
 		d <- mkData endian bsn body
 		r <- mkReader endian bsn body
 		w <- mkWriter endian bsn body
-		i <- retTypeInt endian
 		return $ d ++ [r, w]
 
 mkWriter :: Endian -> String -> [BinaryStructureItem] -> DecQ
