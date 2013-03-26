@@ -1,11 +1,21 @@
-{-# LANGUAGE TemplateHaskell, QuasiQuotes, FlexibleContexts, TypeSynonymInstances,
+{-# LANGUAGE
+	TemplateHaskell,
+	QuasiQuotes,
+	FlexibleContexts,
+	TypeSynonymInstances,
 	FlexibleInstances #-}
+
+{-# OPTIONS_GHC
+	-fno-warn-unused-do-bind
+	-fno-warn-name-shadowing
+	-fno-warn-orphans
+	-fno-warn-unused-matches #-}
 
 module ParseBinaryStructure (
 	Endian(..),
 	BinaryStructure(..),
 	BinaryStructureItem,
-	Expression(..),
+	Expression,
 	bytesOf,
 	typeOf,
 	sizeOf,
@@ -21,7 +31,6 @@ module ParseBinaryStructure (
 import Text.Peggy
 import Here
 import Control.Arrow
-import Data.Char
 import Language.Haskell.TH hiding (Type)
 import Numeric hiding (readInt)
 
@@ -91,17 +100,14 @@ applyOp op e1 e2 = \ret ->
 instance Show Expression where
 	show _ = "Expression"
 
-sumExp :: [Expression] -> Expression
-sumExp [] = const $ litE $ integerL 0
-sumExp (e1 : e2) = addi e1 $ sumExp e2
-
 data ConstantValue
 	= ConstantInt Int
 	| ConstantString String
 	deriving Show
 
-constantInt endian (ConstantInt v) = v
-constantInt endian (ConstantString v) = fromIntegral $ readInt endian v
+constantInt :: Endian -> ConstantValue -> Int
+constantInt _ (ConstantInt v) = v
+constantInt end (ConstantString v) = fromIntegral $ readInt end v
 
 instance Show TypeQ where
 	show _ = "Type"
@@ -129,8 +135,8 @@ sizeOf :: BinaryStructureItem -> Maybe Expression
 sizeOf BinaryStructureItem{binaryStructureItemListSize = s} = s
 
 valueOf :: Endian -> BinaryStructureItem -> Either Int String
-valueOf endian BinaryStructureItem { binaryStructureItemValue = v } =
-	(constantInt endian +++ variableValue) v
+valueOf end BinaryStructureItem { binaryStructureItemValue = v } =
+	(constantInt end +++ variableValue) v
 
 binaryStructureItem :: Expression -> TypeQ -> Maybe Expression ->
 	Either ConstantValue VariableValue -> BinaryStructureItem
@@ -146,9 +152,6 @@ parseBinaryStructure :: String -> BinaryStructure
 parseBinaryStructure src = case parseString top "<code>" src of
 	Right bs -> bs
 	Left ps -> error $ show ps
-
-tupT :: [TypeQ] -> TypeQ
-tupT ts = foldl appT (tupleT $ length ts) ts
 
 [peggy|
 
@@ -182,7 +185,7 @@ typ :: TypeQ
 	/ ""			{ conT $ mkName "Int" }
 
 typeGen :: TypeQ
-	= [(] tupleGen_ [)]	{ tupT $2 }
+	= [(] tupleGen_ [)]	{ foldl appT (tupleT $ length $2) $2 }
 	/ [\[] typeGen [\]]	{ appT listT $ $2 }
 	/ [A-Z][.a-zA-Z0-9]*	{ conT $ mkName $ $1 : $2 }
 
@@ -193,12 +196,6 @@ tupleGen_ :: [TypeQ]
 	= typeGen_ spaces "," spaces tupleGen_
 				{ $1 : $4 }
 	/ typeGen_ spaces "," spaces typeGen_
-				{ [$1, $4] }
-
-tupleGen :: [TypeQ]
-	= typeGen spaces "," spaces tupleGen
-				{ $1 : $4 }
-	/ typeGen spaces "," spaces typeGen
 				{ [$1, $4] }
 
 --	= [\(] [\)]		{ const $ conE $ mkName "()" }
