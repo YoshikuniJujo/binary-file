@@ -245,8 +245,7 @@ mkData :: Endian -> String -> [BinaryStructureItem] -> DecsQ
 mkData endian bsn body = do
 	d <- dataD (cxt []) name [] [con] [''Show]
 	mkInstance bsn
-	ds <- mapM makeData $ map getRepeat $ filter isRepeat body
-	return $ [d] ++ concat ds
+	return $ [d]
 	where
 	name = mkName bsn
 	con = recC (mkName bsn) vsts

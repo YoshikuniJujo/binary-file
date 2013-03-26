@@ -12,8 +12,6 @@ module ParseBinaryStructure (
 	valueOf,
 	parseBinaryStructure,
 	readInt,
-	isRepeat,
-	getRepeat,
 ) where
 
 import Text.Peggy
@@ -113,31 +111,20 @@ data BinaryStructureItem
 		binaryStructureItemListSize :: Maybe Expression, -- (Either Int String),
 		binaryStructureItemValue :: Either ConstantValue VariableValue -- Int String
 	 }
-	| Repeat { getRepeat :: BinaryStructure }
 	deriving Show
 
-isRepeat (Repeat _) = True
-isRepeat _ = False
-
 bytesOf :: BinaryStructureItem -> Expression
-bytesOf (Repeat BinaryStructure{binaryStructureBody = body}) =
-	sumExp $ map bytesOf body
 bytesOf BinaryStructureItem { binaryStructureItemBytes = b } = b
 
 typeOf :: BinaryStructureItem -> TypeQ
-typeOf (Repeat BinaryStructure{binaryStructureName = name}) =
-	appT listT $ conT $ mkName name
 typeOf BinaryStructureItem{binaryStructureItemType = t} = t
 
 sizeOf :: BinaryStructureItem -> Maybe Expression
-sizeOf (Repeat BinaryStructure{}) = Nothing
 sizeOf BinaryStructureItem{binaryStructureItemListSize = s} = s
 
 valueOf :: Endian -> BinaryStructureItem -> Either Int String
 valueOf endian BinaryStructureItem { binaryStructureItemValue = v } =
 	(constantInt endian +++ variableValue) v
-valueOf endian (Repeat BinaryStructure{binaryStructureName = name}) =
-	Right $ "repeat" ++ name
 
 binaryStructureItem :: Expression -> TypeQ -> Maybe Expression ->
 	Either ConstantValue VariableValue -> BinaryStructureItem
@@ -190,8 +177,7 @@ name :: String
 dat :: BinaryStructureItem
 	= expr typ size? ':' spaces val emptyLines
 				{ binaryStructureItem $1 $2 $3 $5 }
-	/ "repeat" spaces "{" top "}"
-				{ Repeat $2 }
+
 typ :: TypeQ
 	= [<] typeGen [>]	{ $2 }
 	/ ""			{ conT $ mkName "Int" }
