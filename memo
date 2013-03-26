@@ -247,3 +247,12 @@ File.Binary.Types と File.Binary.Quote を作り、File.Binary
 外部からの argument を読み込めるようにする。
 つまり、fromType や toType がそのまま write... や read... となるようにする?
 その場合、引数の型を指定してやる必要がある。
+
+Parser で、
+	/ 'arg'		{ \ret arg -> arg }
+のようにする。
+そうしておいて、expression を評価するときに、引数として newName したものを与える。
+そして、その名前を read... や write... の引数として取らせる。
+
+その前にひとつ、Expression を ExpQ にしてしまおう。
+まずは ExpressionQ にすべてまとめるところから。

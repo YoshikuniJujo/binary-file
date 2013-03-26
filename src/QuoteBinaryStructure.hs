@@ -191,11 +191,6 @@ toTupple n = do
 	lam1E (listP $ map varP nl) (tupE $ map varE nl)
 
 expression :: Name -> Expression -> ExpQ
-expression ret (Variable v) = appE (varE $ mkName v) (varE ret)
-expression _ (Number n) = litE $ integerL $ fromIntegral n
-expression ret (Division x y) = divE (expression ret x) (expression ret y)
-expression ret (Multiple x y) = multiE' (expression ret x) (expression ret y)
-expression ret (Addition x y) = addE' (expression ret x) (expression ret y)
 expression ret (ExpressionQ e) = e ret
 
 getField :: Name -> String -> ExpQ

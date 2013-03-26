@@ -74,19 +74,23 @@ chankSize<String>: chankData
 |]
 
 data Expression
-	= Multiple Expression Expression
-	| Division Expression Expression
-	| Addition Expression Expression
-	| Variable String
-	| Number Int
-	| ExpressionQ {expressionQ :: Name -> ExpQ}
+	= ExpressionQ {expressionQ :: Name -> ExpQ}
+
+multi, divi, addi :: Expression -> Expression -> Expression
+multi = applyOp '(*)
+divi = applyOp '(/)
+addi = applyOp '(+)
+
+applyOp :: Name -> Expression -> Expression -> Expression
+applyOp op e1 e2 = ExpressionQ $ \ret ->
+	infixApp (expressionQ e1 ret) (varE op) (expressionQ e2 ret)
 
 instance Show Expression where
 	show _ = "Expression"
 
 sumExp :: [Expression] -> Expression
-sumExp [] = Number 0
-sumExp (e1 : e2) = Addition e1 $ sumExp e2
+sumExp [] = ExpressionQ $ const $ litE $ integerL 0
+sumExp (e1 : e2) = addi e1 $ sumExp e2
 
 data ConstantValue
 	= ConstantInt Int
@@ -220,9 +224,9 @@ tupleGen :: [Type]
 
 --	= [\(] [\)]		{ ExpressionQ $ const $ conE $ mkName "()" }
 expr :: Expression
-	= expr '*' expr		{ Multiple $1 $2 }
-	/ expr '/' expr		{ Division $1 $2 }
-	/ expr '+' expr		{ Addition $1 $2 }
+	= expr '*' expr		{ multi $1 $2 }
+	/ expr '/' expr		{ divi $1 $2 }
+	/ expr '+' expr		{ addi $1 $2 }
 	/ num			{ ExpressionQ $ const $ litE $ integerL $ fromIntegral $1 }
 	/ var			{ ExpressionQ $ appE (varE $ mkName $1) . varE }
 	/ [(] tupleExpr [)]	{ ExpressionQ $2 }
