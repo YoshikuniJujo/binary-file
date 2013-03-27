@@ -124,8 +124,8 @@ CHRM
 
 PLTE
 
--- <Int>
+<Int>
 
--- ((), arg)<[(Int, Int, Int)]>: colors
+-- ((), arg `div` 3)<[(Int, Int, Int)]>: colors
 
 |]

@@ -33,36 +33,33 @@ binary = QuasiQuoter {
  }
 
 mkHaskellTree :: BinaryStructure -> DecsQ
-mkHaskellTree BinaryStructure{
-	binaryStructureName = bsn,
-	binaryStructureBody = body } = do
+mkHaskellTree bs = do
 		d <- mkData bsn body
 		r <- mkReader bsn body
 		w <- mkWriter bsn body
 		return $ d ++ [r, w]
+	where
+	bsn = binaryStructureName bs
+	body = binaryStructureBody bs
 
 mkWriter :: String -> [BinaryStructureItem] -> DecQ
 mkWriter bsn body = do
 	bs <- newName "bs"
 	let run = appE (varE 'cc) $ listE $ map
-		(\bsi -> writeField bs (bytesOf bsi) (sizeOf bsi)
-			(valueOf bsi))
-		body
+		(\bsi -> writeField bs (bytesOf bsi) (valueOf bsi)) body
 	funD (mkName $ "write" ++ bsn)
 		[clause [varP bs] (normalB run) []]
 
-writeField :: Name -> Expression -> Maybe Expression ->
-	Either (Either Int String) String -> ExpQ
-writeField bs size Nothing (Left (Left n)) =
+writeField :: Name -> Expression -> Either (Either Int String) String -> ExpQ
+writeField bs size (Left (Left n)) =
 	appsE [fiend', expression bs size, sigE (litE $ integerL $ fromIntegral n)
 		(conT ''Int)]
 	where
 	fiend' = varE 'fromType
-writeField _ _ Nothing (Left (Right s)) =
+writeField _ _ (Left (Right s)) =
 	appsE [varE 'fs, litE $ stringL s]
-writeField bs bytes size (Right v) =
-	fieldValueToStr bs bytes (isJust size) $ getField bs v
-writeField _ _ (Just _) (Left _) = error "writeField: not yet implemented"
+writeField bs bytes (Right v) =
+	fieldValueToStr bs bytes False $ getField bs v
 
 fieldValueToStr :: Name -> Expression -> Bool -> ExpQ -> ExpQ
 fieldValueToStr bs size False =
@@ -111,20 +108,12 @@ mkBody bsn body cs ret = do
 		let e = [e| error "bad value" |]
 		d <- valD (varP cs'') (normalB $ condE p t e) []
 		return ([d], cs'')
-	    | Right var <- valueOf item, Just expr <- sizeOf item = do
-		cs'' <- newName "cs"
-		def <- valD (tupP [varP $ fromJust $ lookup var np, varP cs''])
-			(normalB (appsE
-				[varE 'times, expression ret expr,
-					appE (varE 'toType) arg, varE cs']))
-				[]
-		return ([def], cs'')
-	    | Right var <- valueOf item, Nothing <- sizeOf item = do
+	    | Right var <- valueOf item = do
 		cs'' <- newName "cs"
 		def <- valD (tupP [varP $ fromJust $ lookup var np, varP cs''])
 			(normalB $ appE (appE (varE 'toType) arg) $ varE cs') []
 		return ([def], cs'')
-	    | otherwise = error $ show $ typeOf item
+	    | otherwise = error "bad"
 	    where
 	    n = expression ret $ bytesOf item
 	    arg = expression ret $ bytesOf item
@@ -174,11 +163,8 @@ mkData bsn body = do
 	con = recC (mkName bsn) vsts
 
 	vsts = flip map (filter isRight body) $ \item ->
-		case (sizeOf item, typeOf item) of
-			(sz, tp) -> varStrictType
-				(mkName $ fromRight $ valueOf item) $
-					strictType notStrict $
-						mkType (isJust sz) tp
+		varStrictType (mkName $ fromRight $ valueOf item) $
+			strictType notStrict $ mkType False $ typeOf item
 	isRight item
 		| Right _ <- valueOf item = True
 		| otherwise = False
