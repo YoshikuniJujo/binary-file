@@ -2,7 +2,7 @@ build-type:	Simple
 cabal-version:	>= 1.8
 
 name:		binary-file
-version:	0.12.6
+version:	0.12.8
 stability:	experimental
 author:		Yoshikuni Jujo <PAF01143@nifty.ne.jp>
 maintainer:	Yoshikuni Jujo <PAF01143@nifty.ne.jp>
@@ -70,15 +70,22 @@ description:
     > ((), Just numberOfColors)<[(Int, Int, Int)]>: colors
     > imageSize<BS.ByteString>: image
     >
-    > 10<String>: authorFirst
-    > 10<String>: authorSecond
+    > ((), Just 10)<String>: authorFirst
+    > ((), Just 10)<String>: authorSecond
     > 
     > |]
     .
 
+extra-source-files:	examples/readPNG.hs
+
 source-repository	head
     type:	git
     location:	git://github.com/YoshikuniJujo/binary-file.git
+
+source-repository	this
+    type:	git
+    location:	git://github.com/YoshikuniJujo/binary-file.git
+    tag:	0.12.8
 
 library
     hs-source-dirs:	src
