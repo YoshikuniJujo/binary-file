@@ -8,26 +8,14 @@ import qualified Data.ByteString as BS
 
 main = do
 	[fin, fout] <- getArgs
-	cnt <- readBinaryFile fin
+--	cnt <- readBinaryFile fin
+	cnt <- BS.readFile fin
 	let (png, rest) = readPNG () cnt
 	print $ png
-	writeBinaryFile fout $ writePNG () png
+--	writeBinaryFile fout $ writePNG () png
+	BS.writeFile fout $ writePNG () png
 
 test = readPNG () `fmap` readBinaryFile "tmp/out.png"
-
-instance RetType Word32 where
-	type Argument Word32 = Int
-	fromType n = rev . fi n . fromIntegral
-	toType n s = (fromIntegral $ ti $ rev $ tk n s, dp n s)
-
-instance RetType (Int, Int, Int) where
-	type Argument (Int, Int, Int) = ()
-	fromType _ (b, g, r) = cc [fromType 1 b, fromType 1 g, fromType 1 r]
-	toType _ s = let
-		(b, rest) = toType 1 s
-		(g, rest') = toType 1 rest
-		(r, rest'') = toType 1 rest' in
-		((b, g, r), rest'')
 
 [binary|
 
@@ -41,6 +29,22 @@ PNG
 ((), Nothing)<[Chank]>: chanks
 
 |]
+
+[binary|
+
+Chank
+
+4: chankSize
+((), Just 4)<String>: chankName
+(chankSize, chankName)<ChankBody>: chankData
+4<Word32>:chankCRC
+
+|]
+
+instance RetType Word32 where
+	type Argument Word32 = Int
+	fromType n = rev . fi n . fromIntegral
+	toType n s = (fromIntegral $ ti $ rev $ tk n s, dp n s)
 
 data ChankBody
 	= ChankIHDR IHDR
@@ -57,48 +61,36 @@ data ChankBody
 
 instance RetType ChankBody where
 	type Argument ChankBody = (Int, String)
-	fromType _ (ChankIHDR ihdr) = writeIHDR () ihdr
-	fromType _ (ChankGAMA gama) = writeGAMA () gama
-	fromType _ (ChankSRGB srgb) = writeSRGB () srgb
-	fromType _ (ChankCHRM chrm) = writeCHRM () chrm
-	fromType (n, _) (ChankPLTE plte) = writePLTE n plte
-	fromType _ (ChankBKGD bkgd) = writeBKGD () bkgd
-	fromType (n, _) (ChankIDAT idat) = writeIDAT n idat
-	fromType (n, _) (ChankTEXT text) = writeTEXT n text
-	fromType _ (ChankIEND iend) = writeIEND () iend
+	fromType _ (ChankIHDR ihdr) = fromType () ihdr
+	fromType _ (ChankGAMA gama) = fromType () gama
+	fromType _ (ChankSRGB srgb) = fromType () srgb
+	fromType (n, _) (ChankCHRM chrm) = fromType n chrm
+	fromType (n, _) (ChankPLTE plte) = fromType n plte
+	fromType _ (ChankBKGD bkgd) = fromType () bkgd
+	fromType (n, _) (ChankIDAT idat) = fromType n idat
+	fromType (n, _) (ChankTEXT text) = fromType n text
+	fromType _ (ChankIEND iend) = fromType () iend
 	fromType (n, _) (Others str) = fromType ((), Just n) str
-	toType (_, "IHDR") str = let (ihdr, rest) = readIHDR () str in
+	toType (_, "IHDR") str = let (ihdr, rest) = toType () str in
 		(ChankIHDR ihdr, rest)
-	toType (_, "gAMA") str = let (gama, rest) = readGAMA () str in
+	toType (_, "gAMA") str = let (gama, rest) = toType () str in
 		(ChankGAMA gama, rest)
-	toType (_, "sRGB") str = let (srgb, rest) = readSRGB () str in
+	toType (_, "sRGB") str = let (srgb, rest) = toType () str in
 		(ChankSRGB srgb, rest)
-	toType (_, "cHRM") str = let (chrm, rest) = readCHRM () str in
+	toType (n, "cHRM") str = let (chrm, rest) = toType n str in
 		(ChankCHRM chrm, rest)
-	toType (n, "PLTE") str = let (plte, rest) = readPLTE n str in
+	toType (n, "PLTE") str = let (plte, rest) = toType n str in
 		(ChankPLTE plte, rest)
-	toType (_, "bKGD") str = let (bkgd, rest) = readBKGD () str in
+	toType (_, "bKGD") str = let (bkgd, rest) = toType () str in
 		(ChankBKGD bkgd, rest)
-	toType (n, "IDAT") str = let (idat, rest) = readIDAT n str in
+	toType (n, "IDAT") str = let (idat, rest) = toType n str in
 		(ChankIDAT idat, rest)
-	toType (n, "tEXt") str = let (text, rest) = readTEXT n str in
+	toType (n, "tEXt") str = let (text, rest) = toType n str in
 		(ChankTEXT text, rest)
-	toType (_, "IEND") str = let (iend, rest) = readIEND () str in
+	toType (_, "IEND") str = let (iend, rest) = toType () str in
 		(ChankIEND iend, rest)
 	toType (n, _) str = let (others, rest) = toType ((), Just n) str in
 		(Others others, rest)
-
-[binary|
-
-Chank
-
-4: chankSize
-((), Just 4)<String>: chankName
-(chankSize, chankName)<ChankBody>: chankData
--- ((), Just chankSize)<String>: chankData
-4<Word32>:chankCRC
-
-|]
 
 [binary|
 
@@ -134,14 +126,9 @@ SRGB
 
 CHRM
 
-4: chrm1
-4: chrm2
-4: chrm3
-4: chrm4
-4: chrm5
-4: chrm6
-4: chrm7
-4: chrm8
+<Int>
+
+(4, Just (arg `div` 4))<[Int]>: chrms
 
 |]
 
@@ -154,6 +141,15 @@ PLTE
 ((), Just (arg `div` 3))<[(Int, Int, Int)]>: colors
 
 |]
+
+instance RetType (Int, Int, Int) where
+	type Argument (Int, Int, Int) = ()
+	fromType _ (b, g, r) = cc [fromType 1 b, fromType 1 g, fromType 1 r]
+	toType _ s = let
+		(b, rest) = toType 1 s
+		(g, rest') = toType 1 rest
+		(r, rest'') = toType 1 rest' in
+		((b, g, r), rest'')
 
 [binary|
 
@@ -183,8 +179,4 @@ TEXT
 
 |]
 
-[binary|
-
-IEND
-
-|]
+[binary|IEND|]
