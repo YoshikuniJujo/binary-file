@@ -7,7 +7,6 @@
 	-fno-warn-orphans #-}
 
 module ParseBinaryStructure (
-	Endian(..),
 	BinaryStructure(..),
 	BinaryStructureItem,
 	Expression,
@@ -48,9 +47,13 @@ data ConstantValue
 	| ConstantString String
 	deriving Show
 
-constantInt :: Endian -> ConstantValue -> Int
-constantInt _ (ConstantInt v) = v
-constantInt end (ConstantString v) = fromIntegral $ readInt end v
+isConstantString :: Either ConstantValue VariableValue -> Bool
+isConstantString (Left (ConstantString _)) = True
+isConstantString _ = False
+
+constantInt :: ConstantValue -> Either Int String
+constantInt (ConstantInt v) = Left v
+constantInt (ConstantString v) = Right v
 
 instance Show TypeQ where
 	show _ = "Type"
@@ -77,9 +80,9 @@ typeOf BinaryStructureItem{binaryStructureItemType = t} = t
 sizeOf :: BinaryStructureItem -> Maybe Expression
 sizeOf BinaryStructureItem{binaryStructureItemListSize = s} = s
 
-valueOf :: Endian -> BinaryStructureItem -> Either Int String
-valueOf end BinaryStructureItem { binaryStructureItemValue = v } =
-	(constantInt end +++ variableValue) v
+valueOf :: BinaryStructureItem -> Either (Either Int String) String
+valueOf BinaryStructureItem { binaryStructureItemValue = v } =
+	(constantInt +++ variableValue) v
 
 binaryStructureItem :: Expression -> TypeQ -> Maybe Expression ->
 	Either ConstantValue VariableValue -> BinaryStructureItem
@@ -87,7 +90,6 @@ binaryStructureItem = BinaryStructureItem
 
 data BinaryStructure = BinaryStructure {
 	binaryStructureName :: String,
-	binaryStructureEndian :: Endian,
 	binaryStructureBody :: [BinaryStructureItem]
  } deriving Show
 
@@ -99,14 +101,8 @@ parseBinaryStructure src = case parseString top "<code>" src of
 [peggy|
 
 top :: BinaryStructure
-	= emptyLines name emptyLines endian emptyLines dat*
-				{ BinaryStructure $2 $4 $6 }
-	/ emptyLines name emptyLines dat*
-				{ BinaryStructure $2 LittleEndian $4 }
-
-endian :: Endian
-	= "set" spaces "big_endian"
-				{ BigEndian }
+	= emptyLines name emptyLines dat*
+				{ BinaryStructure $2 $4 }
 
 emptyLines :: ()
 	= "--" [^\n]* [\n]	{ () }
@@ -121,7 +117,10 @@ name :: String
 
 dat :: BinaryStructureItem
 	= expr typ size? ':' spaces val emptyLines
-				{ binaryStructureItem $1 $2 $3 $5 }
+				{ if isConstantString $5
+					then binaryStructureItem $1
+						(conT $ mkName "String") $3 $5
+					else binaryStructureItem $1 $2 $3 $5 }
 
 typ :: TypeQ
 	= [<] typeGen [>]	{ $2 }
