@@ -44,37 +44,39 @@ mkHaskellTree bs = do
 
 mkWriter :: String -> [BinaryStructureItem] -> DecQ
 mkWriter bsn body = do
+	arg <- newName "arg"
 	bs <- newName "bs"
 	let run = appE (varE 'cc) $ listE $ map
-		(\bsi -> writeField bs (bytesOf bsi) (valueOf bsi)) body
+		(\bsi -> writeField bs arg (bytesOf bsi) (valueOf bsi)) body
 	funD (mkName $ "write" ++ bsn)
-		[clause [varP bs] (normalB run) []]
+		[clause [varP arg, varP bs] (normalB run) []]
 
-writeField :: Name -> Expression -> Either (Either Int String) String -> ExpQ
-writeField bs size (Left (Left n)) =
-	appsE [fiend', expression bs size, sigE (litE $ integerL $ fromIntegral n)
+writeField :: Name -> Name -> Expression -> Either (Either Int String) String -> ExpQ
+writeField bs arg size (Left (Left n)) =
+	appsE [fiend', expression bs arg size, sigE (litE $ integerL $ fromIntegral n)
 		(conT ''Int)]
 	where
 	fiend' = varE 'fromType
-writeField _ _ (Left (Right s)) =
+writeField _ _ _ (Left (Right s)) =
 	appsE [varE 'fs, litE $ stringL s]
-writeField bs bytes (Right v) =
-	fieldValueToStr bs bytes False $ getField bs v
+writeField bs arg bytes (Right v) =
+	fieldValueToStr bs arg bytes False $ getField bs v
 
-fieldValueToStr :: Name -> Expression -> Bool -> ExpQ -> ExpQ
-fieldValueToStr bs size False =
-	appE $ appE (varE 'fromType) (expression bs size)
-fieldValueToStr bs size True = \val ->
+fieldValueToStr :: Name -> Name -> Expression -> Bool -> ExpQ -> ExpQ
+fieldValueToStr bs arg size False =
+	appE $ appE (varE 'fromType) (expression bs arg size)
+fieldValueToStr bs arg size True = \val ->
 	appE (varE 'cc) $ appsE [
-		varE 'map, appE (varE 'fromType) (expression bs size), val]
+		varE 'map, appE (varE 'fromType) (expression bs arg size), val]
 
 mkReader :: String -> [BinaryStructureItem] -> DecQ
 mkReader bsn body = do
+	arg <- newName "arg"
 	cs <- newName "cs"
 	ret <- newName "ret"
 	funD (mkName $ "read" ++ bsn)
-		[clause [varP cs] (normalB $ mkLetRec ret $
-			mkBody bsn body cs) []]
+		[clause [varP arg, varP cs] (normalB $ mkLetRec ret $
+			mkBody bsn arg body cs) []]
 
 mkLetRec :: Name -> (Name -> ExpQ) -> ExpQ
 mkLetRec n f = do
@@ -82,8 +84,8 @@ mkLetRec n f = do
 	letE [valD (tupP [varP n, varP rest]) (normalB $ f n) []] $
 		tupE [varE n, varE rest]
 
-mkBody :: String -> [BinaryStructureItem] -> Name -> Name -> ExpQ
-mkBody bsn body cs ret = do
+mkBody :: String -> Name -> [BinaryStructureItem] -> Name -> Name -> ExpQ
+mkBody bsn arg body cs ret = do
 	namePairs <- for names $ \n -> return . (n ,) =<< newName "tmp"
 	(defs, rest) <- gather cs body $ mkDef namePairs
 	letE (map return defs) $ tupE
@@ -97,7 +99,7 @@ mkBody bsn body cs ret = do
 		cs'' <- newName "cs"
 		let t = dropE' n $ varE cs'
 		let p = val `equal` appE (varE 'fst)
-			(appE (appE (varE 'toType) arg) $ takeE' n $ varE cs')
+			(appE (appE (varE 'toType) arg') $ takeE' n $ varE cs')
 		let e = [e| error "bad value" |]
 		d <- valD (varP cs'') (normalB $ condE p t e) []
 		return ([d], cs'')
@@ -111,15 +113,15 @@ mkBody bsn body cs ret = do
 	    | Right var <- valueOf item = do
 		cs'' <- newName "cs"
 		def <- valD (tupP [varP $ fromJust $ lookup var np, varP cs''])
-			(normalB $ appE (appE (varE 'toType) arg) $ varE cs') []
+			(normalB $ appE (appE (varE 'toType) arg') $ varE cs') []
 		return ([def], cs'')
 	    | otherwise = error "bad"
 	    where
-	    n = expression ret $ bytesOf item
-	    arg = expression ret $ bytesOf item
+	    n = expression ret arg $ bytesOf item
+	    arg' = expression ret arg $ bytesOf item
 
-expression :: Name -> Expression -> ExpQ
-expression ret e = e ret
+expression :: Name -> Name -> Expression -> ExpQ
+expression ret arg e = e ret arg
 
 getField :: Name -> String -> ExpQ
 getField bs v = appE (varE $ mkName v) (varE bs)

@@ -11,7 +11,7 @@ main = do
 	[inf] <- getArgs
 	cnt <- BS.readFile inf
 
-	let (bmp, rest) = readBitmap $ cnt `BS.append` "  rest                "
+	let (bmp, rest) = readBitmap () $ cnt `BS.append` "  rest                "
 	putStrLn $ (++ "...") $ take 4000 $ show $ bmp
 	putStrLn $ (++ "...") $ show $ bmp
 	print rest
@@ -23,7 +23,7 @@ main = do
 
 	BS.writeFile "tmp/out.bmp" out
 
-tmpBMP = fmap readBitmap $ BS.readFile "tmp.bmp"
+tmpBMP = fmap (readBitmap ()) $ BS.readFile "tmp.bmp"
 
 instance RetType Int16 where
 	type Argument Int16 = Int

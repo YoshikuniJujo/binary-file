@@ -49,10 +49,10 @@ data BinaryStructureItem = BinaryStructureItem {
 	valueOf :: Either (Either Int String) String
  }
 
-type Expression	= Name -> ExpQ
+type Expression	= Name -> Name -> ExpQ
 
 applyOp :: Name -> Expression -> Expression -> Expression
-applyOp op e1 e2 ret = infixApp (e1 ret) (varE op) (e2 ret)
+applyOp op e1 e2 ret arg = infixApp (e1 ret arg) (varE op) (e2 ret arg)
 
 [peggy|
 
@@ -101,17 +101,20 @@ expr :: Expression
 	= expr spaces '*' spaces expr		{ applyOp (mkName "*") $1 $4 }
 	/ expr spaces '`div`' spaces expr	{ applyOp (mkName "div") $1 $4 }
 	/ expr spaces '+' spaces expr		{ applyOp (mkName "+") $1 $4 }
-	/ num			{ const $ litE $ integerL $ fromIntegral $1 }
-	/ var			{ appE (varE $ mkName $1) . varE }
+	/ num			{ const $ const $ litE $ integerL $ fromIntegral $1 }
+	/ var			{ if $1 == "arg"
+					then const varE
+					else const . appE (varE $ mkName $1) . varE }
 	/ [(] tupleExpr [)]	{ $2 }
-	/ 'Just' spaces expr	{ \ret -> appE (conE $ mkName "Just") $
-					$2 ret }
-	/ 'Nothing'		{ const $ conE $ mkName "Nothing" }
+	/ 'Just' spaces expr	{ \ret arg -> appE (conE $ mkName "Just") $
+					$2 ret arg }
+	/ 'Nothing'		{ const $ const $ conE $ mkName "Nothing" }
 
-tupleExpr :: Name -> ExpQ
-	= expr ', ' expr	{ \ret -> tupE
-					[$1 ret, $2 ret] }
-	/ ""			{ const $ conE $ mkName "()" }
+tupleExpr :: Expression
+	= expr ', ' expr	{ \ret arg -> tupE
+					[$1 ret arg, $2 ret arg] }
+	/ expr
+	/ ""			{ const $ const $ conE $ mkName "()" }
 
 size :: Expression
 	= '[' expr ']'
