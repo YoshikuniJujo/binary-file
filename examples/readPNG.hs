@@ -20,11 +20,6 @@ instance RetType Word32 where
 	fromType n = rev . fi n . fromIntegral
 	toType n s = (fromIntegral $ ti $ rev $ tk n s, dp n s)
 
-instance RetType Chank where
-	type Argument Chank = ()
-	fromType = writeChank
-	toType = readChank
-
 instance RetType (Int, Int, Int) where
 	type Argument (Int, Int, Int) = ()
 	fromType _ (b, g, r) = cc [fromType 1 b, fromType 1 g, fromType 1 r]

@@ -35,12 +35,22 @@ binary = QuasiQuoter {
 mkHaskellTree :: BinaryStructure -> DecsQ
 mkHaskellTree bs = do
 		d <- mkData bsn body
+		i <- mkInst bsn typ body
 		r <- mkReader bsn body
 		w <- mkWriter bsn body
-		return $ d ++ [r, w]
+		return $ d ++ [i, r, w]
 	where
 	bsn = binaryStructureName bs
+	typ = binaryStructureArgType bs
 	body = binaryStructureBody bs
+
+mkInst :: String -> TypeQ -> [BinaryStructureItem] -> DecQ
+mkInst bsn typ body =
+	instanceD (cxt []) (appT (conT ''RetType) (conT $ mkName bsn)) [
+		tySynInstD ''Argument [conT $ mkName bsn] typ,
+		valD (varP 'fromType) (normalB $ varE $ mkName $ "write" ++ bsn) [],
+		valD (varP 'toType) (normalB $ varE $ mkName $ "read" ++ bsn) []
+	 ]
 
 mkWriter :: String -> [BinaryStructureItem] -> DecQ
 mkWriter bsn body = do
