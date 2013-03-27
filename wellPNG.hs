@@ -7,11 +7,11 @@ import Data.Word
 import qualified Data.ByteString as BS
 
 main = do
-	[f] <- getArgs
-	cnt <- readBinaryFile f
+	[fin, fout] <- getArgs
+	cnt <- readBinaryFile fin
 	let (png, rest) = readPNG () cnt
 	print $ png
-	print $ map chankName $ chanks png
+	writeBinaryFile fout $ writePNG () png
 
 test = readPNG () `fmap` readBinaryFile "tmp/out.png"
 
@@ -66,6 +66,11 @@ instance RetType ChankBody where
 	fromType _ (ChankGAMA gama) = writeGAMA () gama
 	fromType _ (ChankSRGB srgb) = writeSRGB () srgb
 	fromType _ (ChankCHRM chrm) = writeCHRM () chrm
+	fromType (n, _) (ChankPLTE plte) = writePLTE n plte
+	fromType _ (ChankBKGD bkgd) = writeBKGD () bkgd
+	fromType (n, _) (ChankIDAT idat) = writeIDAT n idat
+	fromType (n, _) (ChankTEXT text) = writeTEXT n text
+	fromType _ (ChankIEND iend) = writeIEND () iend
 	fromType (n, _) (Others str) = fromType ((), Just n) str
 	toType (_, "IHDR") str = let (ihdr, rest) = readIHDR () str in
 		(ChankIHDR ihdr, rest)
