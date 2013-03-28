@@ -5,6 +5,9 @@ import File.Binary.Data.BigEndian
 import System.Environment
 import Data.Word
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy.Char8 as BSL
+import Codec.Compression.Zlib
+import CRC (crc)
 
 main = do
 	[fin, fout] <- getArgs
@@ -13,7 +16,33 @@ main = do
 	let (png, rest) = readPNG () cnt
 	print $ png
 --	writeBinaryFile fout $ writePNG () png
-	BS.writeFile fout $ writePNG () png
+--	BS.writeFile fout $ writePNG () png
+
+	let	ChankIDAT idt = chankData $ chanks png !! 6
+		dat = idat idt
+		dec = decompress $ BSL.pack dat
+		recomp = compressWith defaultCompressParams {
+			compressLevel = BestCompression,
+			compressWindowBits = WindowBits 10
+		 } dec
+	print $ length dat
+	print $ length $ BSL.unpack recomp
+
+	let	chank6 = chanks png !! 6
+		newDat = chank6 {
+			chankSize = length $ BSL.unpack recomp,
+			chankData = ChankIDAT $ IDAT $ BSL.unpack recomp,
+			chankCRC = crc $ "IDAT" ++ BSL.unpack recomp
+		 }
+		new = png {
+			chanks = take 6 (chanks png) ++ [newDat] ++
+				drop 7 (chanks png)
+		 }
+	print new
+
+	print $ dat == BSL.unpack recomp
+
+	BS.writeFile fout $ writePNG () new
 
 test = readPNG () `fmap` readBinaryFile "tmp/out.png"
 
@@ -165,7 +194,8 @@ IDAT
 
 <Int>
 
-arg<BS.ByteString>: idat
+((), Just arg)<String>: idat
+--arg<BS.ByteString>: idat
 
 |]
 
