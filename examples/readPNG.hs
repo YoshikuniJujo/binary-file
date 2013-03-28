@@ -6,6 +6,7 @@ import System.Environment
 import Data.Word
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as BSL
+import qualified Data.ByteString.Char8 as BSC
 import Codec.Compression.Zlib
 import CRC (crc)
 import Control.Applicative
@@ -16,28 +17,29 @@ main = do
 	cnt <- BS.readFile fin
 	let (png, rest) = fromBinary () cnt
 
-	print $ png
+	putStrLn $ take 1000 (show png) ++ "..."
 
 --	writeBinaryFile fout $ toBinary () png
 --	BS.writeFile fout $ writePNG () png
 
 	let	ChankIDAT idt = chankData $ chanks png !! 6
 		dat = idat idt
-		dec = decompress $ BSL.pack dat
+{- ---
+		dec = decompress dat
 		recomp = compressWith defaultCompressParams {
 			compressLevel = bestCompression,
 --			compressLevel = bestSpeed,
-			compressWindowBits = WindowBits 10
+			compressWindowBits = WindowBits 15
 		 } dec
 {-
 	print $ length dat
-	print $ length $ BSL.unpack recomp
+	print $ length recomp
 -}
 
 	let	chank6 = chanks png !! 6
 		newDat = chank6 {
-			chankSize = length $ BSL.unpack recomp,
-			chankData = ChankIDAT $ IDAT $ BSL.unpack recomp,
+			chankSize = fromIntegral $ BSL.length recomp,
+			chankData = ChankIDAT $ IDAT recomp,
 			chankCRC = crc $ "IDAT" ++ BSL.unpack recomp
 		 }
 		new = png {
@@ -48,12 +50,57 @@ main = do
 	print new
 -}
 
-	print $ dat == BSL.unpack recomp
+	print $ dat == recomp
+--- -}
 
-	BS.writeFile fout $ toBinary () new
+--	BS.writeFile fout $ toBinary () new
+
+	let	dat = makeData png
+		decomp = decompress dat
+		recomp = compressWith defaultCompressParams {
+			compressLevel = bestCompression,
+--			compressLevel = bestSpeed,
+			compressWindowBits = WindowBits 10
+		 } decomp
+		newData = makeDataChank recomp
+		newnew = png {
+			chanks = headerChanks png ++ newData ++
+				footerChanks png
+		 }
+{-
+		newnew = png {
+			chanks = head (chanks png) : newData ++
+				[last $ chanks png]
+		 }
+-}
+	BS.writeFile fout $ toBinary () newnew
+	print $ dat == recomp
+
+headerChanks :: PNG -> [Chank]
+headerChanks PNG{ chanks = cs } =
+	filter ((`notElem` ["IEND", "IDAT"]) . chankName) cs
+
+footerChanks :: PNG -> [Chank]
+footerChanks PNG{ chanks = cs } = filter ((== "IEND") . chankName) cs
+
+makeData :: PNG -> BSL.ByteString
+makeData PNG{ chanks = cs } =
+	BSL.concat $ map (idat . cidat . chankData) $
+		filter ((== "IDAT") . chankName) cs
+
+makeDataChank :: BSL.ByteString -> [Chank]
+makeDataChank = map makeOneDataChank . BSL.toChunks
+
+makeOneDataChank :: BS.ByteString -> Chank
+makeOneDataChank bs = Chank {
+	chankSize = fromIntegral $ BS.length bs,
+	chankName = "IDAT",
+	chankData = ChankIDAT $ IDAT $ BSL.fromChunks [bs],
+	chankCRC = crc $ "IDAT" ++ BSC.unpack bs
+ }
 
 test :: IO PNG
-test = fst . fromBinary () <$> readBinaryFile "tmp/out.png"
+test = fst . fromBinary () <$> readBinaryFile "tmp/sample.png"
 
 [binary|
 
@@ -81,10 +128,24 @@ Chank
 
 instance Field Word32 where
 	type FieldArgument Word32 = Int
-	toBinary n = rev . fi n . fromIntegral
-	fromBinary n s = (fromIntegral $ ti $ rev t, d)
+	toBinary n = makeBinary . BSC.pack . reverse . lintToBin n . fromIntegral
+	fromBinary n s = (fromIntegral $ toIntgr $ BS.reverse t, d)
 		where
 		(t, d) = getBytes n s
+
+instance Field BSL.ByteString where
+	type FieldArgument BSL.ByteString = Int
+	toBinary _ = makeBinary . BS.concat . BSL.toChunks
+	fromBinary n s = (BSL.fromChunks [t], d)
+		where
+		(t, d) = getBytes n s
+
+toIntgr :: BS.ByteString -> Integer
+toIntgr = mkNum . map fromIntegral . BS.unpack
+
+mkNum :: [Integer] -> Integer
+mkNum [] = 0
+mkNum (x : xs) = x + 2 ^ 8 * mkNum xs
 
 data ChankBody
 	= ChankIHDR IHDR
@@ -93,7 +154,7 @@ data ChankBody
 	| ChankCHRM CHRM
 	| ChankPLTE PLTE
 	| ChankBKGD BKGD
-	| ChankIDAT IDAT
+	| ChankIDAT { cidat :: IDAT }
 	| ChankTEXT TEXT
 	| ChankIEND IEND
 	| Others String
@@ -184,7 +245,7 @@ PLTE
 
 instance Field (Int, Int, Int) where
 	type FieldArgument (Int, Int, Int) = ()
-	toBinary _ (b, g, r) = cc [toBinary 1 b, toBinary 1 g, toBinary 1 r]
+	toBinary _ (b, g, r) = concatBinary [toBinary 1 b, toBinary 1 g, toBinary 1 r]
 	fromBinary _ s = let
 		(b, rest) = fromBinary 1 s
 		(g, rest') = fromBinary 1 rest
@@ -205,8 +266,8 @@ IDAT
 
 <Int>
 
-((), Just arg)<String>: idat
---arg<BS.ByteString>: idat
+arg<BSL.ByteString>: idat
+--((), Just arg)<String>: idat
 
 |]
 
