@@ -23,7 +23,8 @@ module ParseBinaryStructure (
 	Binary(..),
 	Field(..),
 	fii, fiiBE,
-	tii, tiiBE
+	tii, tiiBE,
+	dp
 ) where
 
 import Text.Peggy

@@ -272,3 +272,24 @@ readPNG は 2 つ変更すべき点がある。
 ひとつは、CRC の計算をすべきという点であり、
 もうひとつは、chank の長さのチェックである。
 後者は今の枠組で可能かどうかわからない。
+
+2013.03.28 Thu.
+
+次は class Binary をきれいにする。
+class Binary b where
+	getBytes :: Int -> b -> ([Word8], b)
+
+これだけあればいい気がする。
+
+ただ、これだと、ByteString から ByteString への変換時に、
+無駄な pack, unpack をしてしまうという問題点がある。
+ad hock な解決策としては、たとえば、toByteString を class Binary に入れる
+とかが考えられるけど ...。
+とりあえずは、きれいな実装にしてから効率等を考えていくことにしよう。
+
+やはり、こっちのほうがいいかも
+class Binary b where
+	takeBytes :: Int -> b -> ByteString
+	dropBytes :: Int -> b -> b
+
+こうしておけば不必要な pack, unpack は生じない。

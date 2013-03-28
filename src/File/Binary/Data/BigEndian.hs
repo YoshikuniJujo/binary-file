@@ -8,5 +8,5 @@ import Classes
 
 instance Field Int where
 	type FieldArgument Int = Int
-	fromBinary n s = (fromIntegral $ ti $ rev $ tk n s, dp n s)
+	fromBinary n s = (fromIntegral $ ti $ rev $ fst $ getBytes n s, dp n s)
 	toBinary n = rev . fi n . fromIntegral

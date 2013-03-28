@@ -1,3 +1,4 @@
 /dist/
 /tmp/
+/test/out/
 *.ebuild

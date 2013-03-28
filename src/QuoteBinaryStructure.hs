@@ -21,6 +21,7 @@ import Language.Haskell.TH.Quote
 import Data.Traversable hiding (mapM)
 import Data.Either
 import Data.Maybe
+import qualified Data.ByteString.Char8 as BSC
 
 import ParseBinaryStructure
 
@@ -104,10 +105,11 @@ mkBody bsn arg body cs ret = do
 	mkDef np item cs'
 	    | Left (Left val) <- valueOf item = do
 		cs'' <- newName "cs"
-		let t = dropE' n $ varE cs'
-		let p = val `equal` appE (varE 'fst)
-			(appE (appE (varE 'fromBinary) arg') $ takeE' n $ varE cs')
-		let e = [e| error "bad value" |]
+		let	t = dropE' n $ varE cs'
+			p = val `equal` appE (varE 'fst)
+				(appE (appE (varE 'fromBinary) arg') $
+					takeE' n $ varE cs')
+			e = [e| error "bad value" |]
 		d <- valD (varP cs'') (normalB $ condE p t e) []
 		return ([d], cs'')
 	    | Left (Right val) <- valueOf item = do
@@ -141,7 +143,8 @@ equal' :: String -> ExpQ -> ExpQ
 equal' x y = infixE (Just $ litE $ stringL x) (varE '(==)) (Just y)
 
 takeE' :: ExpQ -> ExpQ -> ExpQ
-takeE' n xs = appE (varE 'ts) $ appsE [varE 'tk, n, xs]
+takeE' n xs = -- appE (varE 'ts) $ appsE [varE 'tk, n, xs]
+	appE (varE 'BSC.unpack) $ appE (varE 'fst) $ appsE [varE 'getBytes, n, xs]
 
 dropE' :: ExpQ -> ExpQ -> ExpQ
 dropE' n xs = appsE [varE 'dp, n, xs]

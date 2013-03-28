@@ -10,11 +10,15 @@ module Classes (
 	Binary(..),
 	fii, fiiBE,
 	tii, tiiBE,
-	readInt
+	readInt,
+	dp
 ) where
 
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BSC
 import Data.Char
+import Data.Word
+import Control.Arrow
 
 data Endian = BigEndian | LittleEndian deriving Show
 
@@ -36,18 +40,19 @@ instance Field r => Field [r] where
 
 instance Field Char where
 	type FieldArgument Char = ()
-	fromBinary _ str = (head $ ts str, dp 1 str)
+	fromBinary _ str = (head $ BSC.unpack t, d)
+		where
+		(t, d) = getBytes 1 str
 	toBinary _ = fs . (: [])
 
 instance Field BS.ByteString where
 	type FieldArgument BS.ByteString = Int
-	fromBinary n str = (tbs $ tk n str, dp n str)
+	fromBinary n str = getBytes n str -- (tbs $ tk n str, dp n str)
 	toBinary _ = fbs
 
 class Binary a where
-	tk :: Int -> a -> a
-	dp :: Int -> a -> a
-	ts :: a -> String
+	getBytes :: Int -> a -> (BS.ByteString, a)
+
 	fs :: String -> a
 	fbs :: BS.ByteString -> a
 	tbs :: a -> BS.ByteString
@@ -61,12 +66,14 @@ class Binary a where
 	empty :: a -> Bool
 	rev :: a -> a
 
+dp :: Binary a => Int -> a -> a
+dp n = snd . getBytes n
+
 instance Binary String where
-	tk = take
-	dp = drop
-	ts = id
+	getBytes n = BSC.pack . take n &&& drop n
+
 	fs = id
-	fbs = ts
+	fbs = BSC.unpack
 	tbs = fs
 	ti = readInt LittleEndian
 	fi = intToBin LittleEndian
@@ -82,13 +89,16 @@ fii, fiiBE :: Binary a => Int -> Int -> a
 fii n = fi n . fromIntegral
 fiiBE n = fiBE n . fromIntegral
 tii, tiiBE :: Binary a => Int -> a -> (Int, a)
-tii _ str = (fromIntegral $ ti $ tk 4 str, dp 4 str)
-tiiBE _ str = (fromIntegral $ tiBE $ tk 4 str, dp 4 str)
+tii _ str = let -- (fromIntegral $ ti $ tk 4 str, dp 4 str)
+	(t, d) = getBytes 4 str in
+	(fromIntegral $ ti t, d)
+tiiBE _ str = let -- (fromIntegral $ tiBE $ tk 4 str, dp 4 str)
+	(t, d) = getBytes 4 str in
+	(fromIntegral $ tiBE t, d)
 
 instance Binary BS.ByteString where
-	tk = BS.take
-	dp = BS.drop
-	ts = map (chr . fromIntegral) . BS.unpack
+	getBytes n = BS.take n &&& BS.drop n
+
 	fs = BS.pack . map (fromIntegral . ord)
 	fbs = id
 	tbs = id

@@ -82,7 +82,9 @@ Chank
 instance Field Word32 where
 	type FieldArgument Word32 = Int
 	toBinary n = rev . fi n . fromIntegral
-	fromBinary n s = (fromIntegral $ ti $ rev $ tk n s, dp n s)
+	fromBinary n s = (fromIntegral $ ti $ rev t, d)
+		where
+		(t, d) = getBytes n s
 
 data ChankBody
 	= ChankIHDR IHDR

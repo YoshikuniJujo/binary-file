@@ -5,3 +5,4 @@
 5. リファクタリング
 6. ByteString を切り離してもいいかもしれない
 7. deriving Show を任意にする
+8. class Binary をきれいにする
