@@ -8,16 +8,15 @@
 module Classes (
 	Field(..),
 	Binary(..),
-	fii, fiiBE,
-	tii, tiiBE,
+	fii, tii,
 	readInt,
-	dp
+	dp, fs, ti, cc,
+	lintToBin
 ) where
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import Data.Char
-import Data.Word
 import Control.Arrow
 
 data Endian = BigEndian | LittleEndian deriving Show
@@ -47,70 +46,52 @@ instance Field Char where
 
 instance Field BS.ByteString where
 	type FieldArgument BS.ByteString = Int
-	fromBinary n str = getBytes n str -- (tbs $ tk n str, dp n str)
-	toBinary _ = fbs
+	fromBinary n str = getBytes n str
+	toBinary _ = makeBinary
 
 class Binary a where
 	getBytes :: Int -> a -> (BS.ByteString, a)
+	makeBinary :: BS.ByteString -> a
+	concatBinary :: [a] -> a
+	emptyBinary :: a -> Bool
 
-	fs :: String -> a
-	fbs :: BS.ByteString -> a
-	tbs :: a -> BS.ByteString
-	ti :: a -> Integer
-	fi :: Int -> Integer -> a
-	tiBE :: a -> Integer
-	fiBE :: Int -> Integer -> a
-	cc :: [a] -> a
-	zero :: a
-	len :: a -> Int
-	empty :: a -> Bool
-	rev :: a -> a
+empty :: Binary a => a -> Bool
+empty = emptyBinary
+
+cc :: Binary a => [a] -> a
+cc = concatBinary
+
+ti :: Binary a => a -> Integer
+ti = readInt LittleEndian . BSC.unpack . fst . getBytes 100
+
+fs :: Binary a => String -> a
+fs = makeBinary . BSC.pack
 
 dp :: Binary a => Int -> a -> a
 dp n = snd . getBytes n
 
 instance Binary String where
 	getBytes n = BSC.pack . take n &&& drop n
+	makeBinary = BSC.unpack
 
-	fs = id
-	fbs = BSC.unpack
-	tbs = fs
-	ti = readInt LittleEndian
-	fi = intToBin LittleEndian
-	tiBE = readInt BigEndian
-	fiBE = intToBin BigEndian
-	cc = concat
-	zero = "\0"
-	len = length
-	empty = null
-	rev = reverse
+	concatBinary = concat
+	emptyBinary = null
 
-fii, fiiBE :: Binary a => Int -> Int -> a
-fii n = fi n . fromIntegral
-fiiBE n = fiBE n . fromIntegral
-tii, tiiBE :: Binary a => Int -> a -> (Int, a)
-tii _ str = let -- (fromIntegral $ ti $ tk 4 str, dp 4 str)
+fii :: Binary a => Int -> Int -> a
+fii n = makeBinary . BSC.pack . intToBin LittleEndian n . fromIntegral
+tii :: Binary a => Int -> a -> (Int, a)
+tii _ str = let
 	(t, d) = getBytes 4 str in
 	(fromIntegral $ ti t, d)
-tiiBE _ str = let -- (fromIntegral $ tiBE $ tk 4 str, dp 4 str)
-	(t, d) = getBytes 4 str in
-	(fromIntegral $ tiBE t, d)
 
 instance Binary BS.ByteString where
 	getBytes n = BS.take n &&& BS.drop n
+	makeBinary = id
 
-	fs = BS.pack . map (fromIntegral . ord)
-	fbs = id
-	tbs = id
-	ti = readInt LittleEndian . map (chr . fromIntegral) . BS.unpack
-	fi n = BS.pack . map (fromIntegral . ord) . intToBin LittleEndian n
-	tiBE = readInt BigEndian . map (chr . fromIntegral) . BS.unpack
-	fiBE n = BS.pack . map (fromIntegral . ord) . intToBin BigEndian n
-	cc = BS.concat
-	zero = BS.singleton 0
-	len = BS.length
-	empty = (== 0) . BS.length
-	rev = BS.reverse
+	concatBinary = BS.concat
+	emptyBinary = (== 0) . BS.length
+
+lintToBin = intToBin LittleEndian
 
 intToBin :: Endian -> Int -> Integer -> String
 intToBin LittleEndian 0 _ = ""

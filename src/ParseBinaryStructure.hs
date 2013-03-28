@@ -22,9 +22,9 @@ module ParseBinaryStructure (
 	Expression,
 	Binary(..),
 	Field(..),
-	fii, fiiBE,
-	tii, tiiBE,
-	dp
+	fii, -- fiiBE,
+	tii, -- tiiBE,
+	dp, fs, cc
 ) where
 
 import Text.Peggy

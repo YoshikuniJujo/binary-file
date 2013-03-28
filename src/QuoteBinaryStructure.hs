@@ -9,8 +9,8 @@ module QuoteBinaryStructure (
 	binary,
 	Field(..),
 	Binary(..),
-	fii, fiiBE,
-	tii, tiiBE,
+	fii, -- fiiBE,
+	tii, -- tiiBE,
 	times
 ) where
 
