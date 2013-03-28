@@ -6,7 +6,7 @@ import Classes
 
 -- retTypeInt LittleEndian
 
-instance RetType Int where
-	type Argument Int = Int
-	fromType n = fi n . fromIntegral
-	toType n s = (fromIntegral $ ti $ tk n s, dp n s)
+instance Field Int where
+	type FieldArgument Int = Int
+	fromBinary n s = (fromIntegral $ ti $ tk n s, dp n s)
+	toBinary n = fi n . fromIntegral

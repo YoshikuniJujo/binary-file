@@ -6,8 +6,8 @@
 	OverloadedStrings #-}
 
 module Classes (
-	RetType(..),
-	Str(..),
+	Field(..),
+	Binary(..),
 	fii, fiiBE,
 	tii, tiiBE,
 	readInt
@@ -23,28 +23,28 @@ readInt LittleEndian "" = 0
 readInt LittleEndian (c : cs) = fromIntegral (ord c) + 2 ^ (8 :: Integer) * readInt LittleEndian cs
 readInt BigEndian str = readInt LittleEndian $ reverse str
 
-class RetType r where
-	type Argument r
-	fromType :: Str s => Argument r -> r -> s
-	toType :: Str s => Argument r -> s -> (r, s)
+class Field r where
+	type FieldArgument r
+	fromBinary :: Binary s => FieldArgument r -> s -> (r, s)
+	toBinary :: Binary s => FieldArgument r -> r -> s
 
-instance RetType r => RetType [r] where
-	type Argument [r] = (Argument r, Maybe Int)
-	fromType (a, _) rs = cc $ map (fromType a) rs
-	toType (a, Just b) s = (b `times` toType a) s
-	toType (a, Nothing) s = whole (toType a) s
+instance Field r => Field [r] where
+	type FieldArgument [r] = (FieldArgument r, Maybe Int)
+	fromBinary (a, Just b) s = (b `times` fromBinary a) s
+	fromBinary (a, Nothing) s = whole (fromBinary a) s
+	toBinary (a, _) rs = cc $ map (toBinary a) rs
 
-instance RetType Char where
-	type Argument Char = ()
-	fromType _ = fs . (: [])
-	toType _ str = (head $ ts str, dp 1 str)
+instance Field Char where
+	type FieldArgument Char = ()
+	fromBinary _ str = (head $ ts str, dp 1 str)
+	toBinary _ = fs . (: [])
 
-instance RetType BS.ByteString where
-	type Argument BS.ByteString = Int
-	fromType _ = fbs
-	toType n str = (tbs $ tk n str, dp n str)
+instance Field BS.ByteString where
+	type FieldArgument BS.ByteString = Int
+	fromBinary n str = (tbs $ tk n str, dp n str)
+	toBinary _ = fbs
 
-class Str a where
+class Binary a where
 	tk :: Int -> a -> a
 	dp :: Int -> a -> a
 	ts :: a -> String
@@ -61,7 +61,7 @@ class Str a where
 	empty :: a -> Bool
 	rev :: a -> a
 
-instance Str String where
+instance Binary String where
 	tk = take
 	dp = drop
 	ts = id
@@ -78,14 +78,14 @@ instance Str String where
 	empty = null
 	rev = reverse
 
-fii, fiiBE :: Str a => Int -> Int -> a
+fii, fiiBE :: Binary a => Int -> Int -> a
 fii n = fi n . fromIntegral
 fiiBE n = fiBE n . fromIntegral
-tii, tiiBE :: Str a => Int -> a -> (Int, a)
+tii, tiiBE :: Binary a => Int -> a -> (Int, a)
 tii _ str = (fromIntegral $ ti $ tk 4 str, dp 4 str)
 tiiBE _ str = (fromIntegral $ tiBE $ tk 4 str, dp 4 str)
 
-instance Str BS.ByteString where
+instance Binary BS.ByteString where
 	tk = BS.take
 	dp = BS.drop
 	ts = map (chr . fromIntegral) . BS.unpack
@@ -115,7 +115,7 @@ times n f s = let
 	(rets, rest') = times (n - 1) f rest in
 	(ret : rets, rest')
 
-whole :: Str s => (s -> (ret, s)) -> s -> ([ret], s)
+whole :: Binary s => (s -> (ret, s)) -> s -> ([ret], s)
 whole f s
 	| empty s = ([], s)
 	| otherwise = let

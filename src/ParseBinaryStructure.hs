@@ -20,8 +20,8 @@ module ParseBinaryStructure (
 	valueOf,
 
 	Expression,
-	Str(..),
-	RetType(..),
+	Binary(..),
+	Field(..),
 	fii, fiiBE,
 	tii, tiiBE
 ) where

@@ -77,10 +77,10 @@ Chank
 
 |]
 
-instance RetType Word32 where
-	type Argument Word32 = Int
-	fromType n = rev . fi n . fromIntegral
-	toType n s = (fromIntegral $ ti $ rev $ tk n s, dp n s)
+instance Field Word32 where
+	type FieldArgument Word32 = Int
+	toBinary n = rev . fi n . fromIntegral
+	fromBinary n s = (fromIntegral $ ti $ rev $ tk n s, dp n s)
 
 data ChankBody
 	= ChankIHDR IHDR
@@ -95,37 +95,37 @@ data ChankBody
 	| Others String
 	deriving Show
 
-instance RetType ChankBody where
-	type Argument ChankBody = (Int, String)
-	fromType _ (ChankIHDR ihdr) = fromType () ihdr
-	fromType _ (ChankGAMA gama) = fromType () gama
-	fromType _ (ChankSRGB srgb) = fromType () srgb
-	fromType (n, _) (ChankCHRM chrm) = fromType n chrm
-	fromType (n, _) (ChankPLTE plte) = fromType n plte
-	fromType _ (ChankBKGD bkgd) = fromType () bkgd
-	fromType (n, _) (ChankIDAT idat) = fromType n idat
-	fromType (n, _) (ChankTEXT text) = fromType n text
-	fromType _ (ChankIEND iend) = fromType () iend
-	fromType (n, _) (Others str) = fromType ((), Just n) str
-	toType (_, "IHDR") str = let (ihdr, rest) = toType () str in
+instance Field ChankBody where
+	type FieldArgument ChankBody = (Int, String)
+	toBinary _ (ChankIHDR ihdr) = toBinary () ihdr
+	toBinary _ (ChankGAMA gama) = toBinary () gama
+	toBinary _ (ChankSRGB srgb) = toBinary () srgb
+	toBinary (n, _) (ChankCHRM chrm) = toBinary n chrm
+	toBinary (n, _) (ChankPLTE plte) = toBinary n plte
+	toBinary _ (ChankBKGD bkgd) = toBinary () bkgd
+	toBinary (n, _) (ChankIDAT idat) = toBinary n idat
+	toBinary (n, _) (ChankTEXT text) = toBinary n text
+	toBinary _ (ChankIEND iend) = toBinary () iend
+	toBinary (n, _) (Others str) = toBinary ((), Just n) str
+	fromBinary (_, "IHDR") str = let (ihdr, rest) = fromBinary () str in
 		(ChankIHDR ihdr, rest)
-	toType (_, "gAMA") str = let (gama, rest) = toType () str in
+	fromBinary (_, "gAMA") str = let (gama, rest) = fromBinary () str in
 		(ChankGAMA gama, rest)
-	toType (_, "sRGB") str = let (srgb, rest) = toType () str in
+	fromBinary (_, "sRGB") str = let (srgb, rest) = fromBinary () str in
 		(ChankSRGB srgb, rest)
-	toType (n, "cHRM") str = let (chrm, rest) = toType n str in
+	fromBinary (n, "cHRM") str = let (chrm, rest) = fromBinary n str in
 		(ChankCHRM chrm, rest)
-	toType (n, "PLTE") str = let (plte, rest) = toType n str in
+	fromBinary (n, "PLTE") str = let (plte, rest) = fromBinary n str in
 		(ChankPLTE plte, rest)
-	toType (_, "bKGD") str = let (bkgd, rest) = toType () str in
+	fromBinary (_, "bKGD") str = let (bkgd, rest) = fromBinary () str in
 		(ChankBKGD bkgd, rest)
-	toType (n, "IDAT") str = let (idat, rest) = toType n str in
+	fromBinary (n, "IDAT") str = let (idat, rest) = fromBinary n str in
 		(ChankIDAT idat, rest)
-	toType (n, "tEXt") str = let (text, rest) = toType n str in
+	fromBinary (n, "tEXt") str = let (text, rest) = fromBinary n str in
 		(ChankTEXT text, rest)
-	toType (_, "IEND") str = let (iend, rest) = toType () str in
+	fromBinary (_, "IEND") str = let (iend, rest) = fromBinary () str in
 		(ChankIEND iend, rest)
-	toType (n, _) str = let (others, rest) = toType ((), Just n) str in
+	fromBinary (n, _) str = let (others, rest) = fromBinary ((), Just n) str in
 		(Others others, rest)
 
 [binary|
@@ -178,13 +178,13 @@ PLTE
 
 |]
 
-instance RetType (Int, Int, Int) where
-	type Argument (Int, Int, Int) = ()
-	fromType _ (b, g, r) = cc [fromType 1 b, fromType 1 g, fromType 1 r]
-	toType _ s = let
-		(b, rest) = toType 1 s
-		(g, rest') = toType 1 rest
-		(r, rest'') = toType 1 rest' in
+instance Field (Int, Int, Int) where
+	type FieldArgument (Int, Int, Int) = ()
+	toBinary _ (b, g, r) = cc [toBinary 1 b, toBinary 1 g, toBinary 1 r]
+	fromBinary _ s = let
+		(b, rest) = fromBinary 1 s
+		(g, rest') = fromBinary 1 rest
+		(r, rest'') = fromBinary 1 rest' in
 		((b, g, r), rest'')
 
 [binary|

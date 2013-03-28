@@ -7,8 +7,8 @@
 
 module QuoteBinaryStructure (
 	binary,
-	RetType(..),
-	Str(..),
+	Field(..),
+	Binary(..),
 	fii, fiiBE,
 	tii, tiiBE,
 	times
@@ -46,10 +46,10 @@ mkHaskellTree bs = do
 
 mkInst :: String -> TypeQ -> [BinaryStructureItem] -> DecQ
 mkInst bsn typ body =
-	instanceD (cxt []) (appT (conT ''RetType) (conT $ mkName bsn)) [
-		tySynInstD ''Argument [conT $ mkName bsn] typ,
-		valD (varP 'fromType) (normalB $ varE $ mkName $ "write" ++ bsn) [],
-		valD (varP 'toType) (normalB $ varE $ mkName $ "read" ++ bsn) []
+	instanceD (cxt []) (appT (conT ''Field) (conT $ mkName bsn)) [
+		tySynInstD ''FieldArgument [conT $ mkName bsn] typ,
+		valD (varP 'toBinary) (normalB $ varE $ mkName $ "write" ++ bsn) [],
+		valD (varP 'fromBinary) (normalB $ varE $ mkName $ "read" ++ bsn) []
 	 ]
 
 mkWriter :: String -> [BinaryStructureItem] -> DecQ
@@ -66,7 +66,7 @@ writeField bs arg size (Left (Left n)) =
 	appsE [fiend', expression bs arg size, sigE (litE $ integerL $ fromIntegral n)
 		(conT ''Int)]
 	where
-	fiend' = varE 'fromType
+	fiend' = varE 'toBinary
 writeField _ _ _ (Left (Right s)) =
 	appsE [varE 'fs, litE $ stringL s]
 writeField bs arg bytes (Right v) =
@@ -74,10 +74,10 @@ writeField bs arg bytes (Right v) =
 
 fieldValueToStr :: Name -> Name -> Expression -> Bool -> ExpQ -> ExpQ
 fieldValueToStr bs arg size False =
-	appE $ appE (varE 'fromType) (expression bs arg size)
+	appE $ appE (varE 'toBinary) (expression bs arg size)
 fieldValueToStr bs arg size True = \val ->
 	appE (varE 'cc) $ appsE [
-		varE 'map, appE (varE 'fromType) (expression bs arg size), val]
+		varE 'map, appE (varE 'toBinary) (expression bs arg size), val]
 
 mkReader :: String -> [BinaryStructureItem] -> DecQ
 mkReader bsn body = do
@@ -109,7 +109,7 @@ mkBody bsn arg body cs ret = do
 		cs'' <- newName "cs"
 		let t = dropE' n $ varE cs'
 		let p = val `equal` appE (varE 'fst)
-			(appE (appE (varE 'toType) arg') $ takeE' n $ varE cs')
+			(appE (appE (varE 'fromBinary) arg') $ takeE' n $ varE cs')
 		let e = [e| error "bad value" |]
 		d <- valD (varP cs'') (normalB $ condE p t e) []
 		return ([d], cs'')
@@ -123,7 +123,7 @@ mkBody bsn arg body cs ret = do
 	    | Right var <- valueOf item = do
 		cs'' <- newName "cs"
 		def <- valD (tupP [varP $ fromJust $ lookup var np, varP cs''])
-			(normalB $ appE (appE (varE 'toType) arg') $ varE cs') []
+			(normalB $ appE (appE (varE 'fromBinary) arg') $ varE cs') []
 		return ([def], cs'')
 	    | otherwise = error "bad"
 	    where
@@ -158,10 +158,10 @@ gather s (x : xs) f = do
 
 mkInstance :: String -> DecQ
 mkInstance name =
-	instanceD (cxt []) (appT (conT ''RetType) (conT $ mkName name)) [
-		valD (varP $ 'fromType)
+	instanceD (cxt []) (appT (conT ''Field) (conT $ mkName name)) [
+		valD (varP $ 'toBinary)
 			(normalB $ varE $ mkName $ "write" ++ name) [],
-		valD (varP $ 'toType)
+		valD (varP $ 'fromBinary)
 			(normalB $ varE $ mkName $ "read" ++ name) []
 	 ]
 

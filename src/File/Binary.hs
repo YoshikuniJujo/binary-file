@@ -2,8 +2,8 @@ module File.Binary (
 	readBinaryFile,
 	writeBinaryFile,
 	binary,
-	RetType(..),
-	Str(..),
+	Field(..),
+	Binary(..),
 	tii, tiiBE,
 	fii, fiiBE
 --	times

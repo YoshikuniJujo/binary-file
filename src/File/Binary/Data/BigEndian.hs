@@ -6,7 +6,7 @@ import Classes
 
 -- retTypeInt BigEndian
 
-instance RetType Int where
-	type Argument Int = Int
-	fromType n = rev . fi n . fromIntegral
-	toType n s = (fromIntegral $ ti $ rev $ tk n s, dp n s)
+instance Field Int where
+	type FieldArgument Int = Int
+	fromBinary n s = (fromIntegral $ ti $ rev $ tk n s, dp n s)
+	toBinary n = rev . fi n . fromIntegral

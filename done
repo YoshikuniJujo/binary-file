@@ -1,0 +1,4 @@
+1. class RetType を class Field にした
+2. type Argument を type FieldArgument にした
+3. toType を fromBinary とし、fromType を toBinary とした
+4. class Str を class Binary に変えた
