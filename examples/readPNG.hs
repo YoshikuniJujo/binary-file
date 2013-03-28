@@ -14,7 +14,9 @@ main = do
 --	cnt <- readBinaryFile fin
 	cnt <- BS.readFile fin
 	let (png, rest) = readPNG () cnt
+
 	print $ png
+
 --	writeBinaryFile fout $ writePNG () png
 --	BS.writeFile fout $ writePNG () png
 
@@ -22,11 +24,14 @@ main = do
 		dat = idat idt
 		dec = decompress $ BSL.pack dat
 		recomp = compressWith defaultCompressParams {
-			compressLevel = BestCompression,
+			compressLevel = bestCompression,
+--			compressLevel = bestSpeed,
 			compressWindowBits = WindowBits 10
 		 } dec
+{-
 	print $ length dat
 	print $ length $ BSL.unpack recomp
+-}
 
 	let	chank6 = chanks png !! 6
 		newDat = chank6 {
@@ -38,7 +43,9 @@ main = do
 			chanks = take 6 (chanks png) ++ [newDat] ++
 				drop 7 (chanks png)
 		 }
+{-
 	print new
+-}
 
 	print $ dat == BSL.unpack recomp
 
