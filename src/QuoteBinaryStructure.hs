@@ -36,9 +36,7 @@ mkHaskellTree :: BinaryStructure -> DecsQ
 mkHaskellTree bs = do
 		d <- mkData bsn body
 		i <- mkInst bsn typ body
-		r <- mkReader bsn body
-		w <- mkWriter bsn body
-		return $ d ++ [i, r, w]
+		return $ d ++ [i]
 	where
 	bsn = binaryStructureName bs
 	typ = binaryStructureArgType bs
@@ -48,17 +46,17 @@ mkInst :: String -> TypeQ -> [BinaryStructureItem] -> DecQ
 mkInst bsn typ body =
 	instanceD (cxt []) (appT (conT ''Field) (conT $ mkName bsn)) [
 		tySynInstD ''FieldArgument [conT $ mkName bsn] typ,
-		valD (varP 'toBinary) (normalB $ varE $ mkName $ "write" ++ bsn) [],
-		valD (varP 'fromBinary) (normalB $ varE $ mkName $ "read" ++ bsn) []
+		reading "fromBinary" bsn body,
+		writing "toBinary" body
 	 ]
 
-mkWriter :: String -> [BinaryStructureItem] -> DecQ
-mkWriter bsn body = do
+writing :: String -> [BinaryStructureItem] -> DecQ
+writing name body = do
 	arg <- newName "arg"
 	bs <- newName "bs"
 	let run = appE (varE 'cc) $ listE $ map
 		(\bsi -> writeField bs arg (bytesOf bsi) (valueOf bsi)) body
-	funD (mkName $ "write" ++ bsn)
+	funD (mkName name)
 		[clause [varP arg, varP bs] (normalB run) []]
 
 writeField :: Name -> Name -> Expression -> Either (Either Int String) String -> ExpQ
@@ -79,14 +77,13 @@ fieldValueToStr bs arg size True = \val ->
 	appE (varE 'cc) $ appsE [
 		varE 'map, appE (varE 'toBinary) (expression bs arg size), val]
 
-mkReader :: String -> [BinaryStructureItem] -> DecQ
-mkReader bsn body = do
+reading :: String -> String -> [BinaryStructureItem] -> DecQ
+reading name bsn body = do
 	arg <- newName "arg"
 	cs <- newName "cs"
 	ret <- newName "ret"
-	funD (mkName $ "read" ++ bsn)
-		[clause [varP arg, varP cs] (normalB $ mkLetRec ret $
-			mkBody bsn arg body cs) []]
+	funD (mkName name) [clause [varP arg, varP cs]
+		(normalB $ mkLetRec ret $ mkBody bsn arg body cs) []]
 
 mkLetRec :: Name -> (Name -> ExpQ) -> ExpQ
 mkLetRec n f = do

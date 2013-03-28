@@ -8,16 +8,17 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as BSL
 import Codec.Compression.Zlib
 import CRC (crc)
+import Control.Applicative
 
 main = do
 	[fin, fout] <- getArgs
 --	cnt <- readBinaryFile fin
 	cnt <- BS.readFile fin
-	let (png, rest) = readPNG () cnt
+	let (png, rest) = fromBinary () cnt
 
 	print $ png
 
---	writeBinaryFile fout $ writePNG () png
+--	writeBinaryFile fout $ toBinary () png
 --	BS.writeFile fout $ writePNG () png
 
 	let	ChankIDAT idt = chankData $ chanks png !! 6
@@ -49,9 +50,10 @@ main = do
 
 	print $ dat == BSL.unpack recomp
 
-	BS.writeFile fout $ writePNG () new
+	BS.writeFile fout $ toBinary () new
 
-test = readPNG () `fmap` readBinaryFile "tmp/out.png"
+test :: IO PNG
+test = fst . fromBinary () <$> readBinaryFile "tmp/out.png"
 
 [binary|
 
