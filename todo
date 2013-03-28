@@ -6,3 +6,4 @@
 6. ByteString を切り離してもいいかもしれない
 7. deriving Show を任意にする
 8. class Binary をきれいにする
+9. ByteString ではなく Lazy.ByteString を中間として使うべきか考慮する

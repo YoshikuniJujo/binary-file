@@ -1,9 +1,9 @@
-{-# LANGUAGE TemplateHaskell, TypeFamilies #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module File.Binary.Data.LittleEndian where
 
 import Classes
-import qualified Data.ByteString.Char8 as BSC
+import qualified Data.ByteString.Lazy.Char8 as BSLC
 
 -- retTypeInt LittleEndian
 
@@ -12,4 +12,4 @@ instance Field Int where
 	fromBinary n s = (fromIntegral $ ti t, d)
 		where
 		(t, d) = getBytes n s
-	toBinary n = makeBinary . BSC.pack . rev . lintToBin n . fromIntegral
+	toBinary n = makeBinary . BSLC.pack . reverse . lintToBin n . fromIntegral

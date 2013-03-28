@@ -293,3 +293,6 @@ class Binary b where
 	dropBytes :: Int -> b -> b
 
 こうしておけば不必要な pack, unpack は生じない。
+
+もしかすると、ByteString ではなく
+ Lazy.ByteString を中間形式にするべきかもしれない。

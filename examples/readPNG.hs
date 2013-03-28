@@ -5,8 +5,9 @@ import File.Binary.Data.BigEndian
 import System.Environment
 import Data.Word
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.ByteString.Char8 as BSC
+import qualified Data.ByteString.Lazy as BSL
+import qualified Data.ByteString.Lazy.Char8 as BSLC
 import Codec.Compression.Zlib
 import CRC (crc)
 import Control.Applicative
@@ -128,20 +129,20 @@ Chank
 
 instance Field Word32 where
 	type FieldArgument Word32 = Int
-	toBinary n = makeBinary . BSC.pack . reverse . lintToBin n . fromIntegral
-	fromBinary n s = (fromIntegral $ toIntgr $ BS.reverse t, d)
+	toBinary n = makeBinary . BSLC.pack . reverse . lintToBin n . fromIntegral
+	fromBinary n s = (fromIntegral $ toIntgr $ BSL.reverse t, d)
 		where
 		(t, d) = getBytes n s
 
 instance Field BSL.ByteString where
 	type FieldArgument BSL.ByteString = Int
-	toBinary _ = makeBinary . BS.concat . BSL.toChunks
-	fromBinary n s = (BSL.fromChunks [t], d)
+	toBinary _ = makeBinary -- . BS.concat . BSL.toChunks
+	fromBinary n s = (t, d) -- (BSL.fromChunks [t], d)
 		where
 		(t, d) = getBytes n s
 
-toIntgr :: BS.ByteString -> Integer
-toIntgr = mkNum . map fromIntegral . BS.unpack
+toIntgr :: BSL.ByteString -> Integer
+toIntgr = mkNum . map fromIntegral . BSL.unpack
 
 mkNum :: [Integer] -> Integer
 mkNum [] = 0

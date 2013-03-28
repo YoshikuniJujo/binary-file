@@ -1,5 +1,4 @@
 {-# LANGUAGE
-	TemplateHaskell,
 	TypeSynonymInstances,
 	FlexibleInstances,
 	TypeFamilies,
@@ -15,7 +14,8 @@ module Classes (
 ) where
 
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BSC
+import qualified Data.ByteString.Lazy as BSL
+import qualified Data.ByteString.Lazy.Char8 as BSLC
 import Data.Char
 import Control.Arrow
 
@@ -39,19 +39,20 @@ instance Field r => Field [r] where
 
 instance Field Char where
 	type FieldArgument Char = ()
-	fromBinary _ str = (head $ BSC.unpack t, d)
+	fromBinary _ str = (head $ BSLC.unpack t, d)
 		where
 		(t, d) = getBytes 1 str
 	toBinary _ = fs . (: [])
 
 instance Field BS.ByteString where
 	type FieldArgument BS.ByteString = Int
-	fromBinary n str = getBytes n str
-	toBinary _ = makeBinary
+	fromBinary n str =
+		first (BS.concat . BSL.toChunks) $ getBytes n str
+	toBinary _ = makeBinary . BSL.fromChunks . (: [])
 
 class Binary a where
-	getBytes :: Int -> a -> (BS.ByteString, a)
-	makeBinary :: BS.ByteString -> a
+	getBytes :: Int -> a -> (BSL.ByteString, a)
+	makeBinary :: BSL.ByteString -> a
 	concatBinary :: [a] -> a
 	emptyBinary :: a -> Bool
 
@@ -62,35 +63,43 @@ cc :: Binary a => [a] -> a
 cc = concatBinary
 
 ti :: Binary a => a -> Integer
-ti = readInt LittleEndian . BSC.unpack . fst . getBytes 100
+ti = readInt LittleEndian . BSLC.unpack . fst . getBytes 100
 
 fs :: Binary a => String -> a
-fs = makeBinary . BSC.pack
+fs = makeBinary . BSLC.pack
 
 dp :: Binary a => Int -> a -> a
 dp n = snd . getBytes n
 
 instance Binary String where
-	getBytes n = BSC.pack . take n &&& drop n
-	makeBinary = BSC.unpack
+	getBytes n = BSLC.pack . take n &&& drop n
+	makeBinary = BSLC.unpack
 
 	concatBinary = concat
 	emptyBinary = null
 
 fii :: Binary a => Int -> Int -> a
-fii n = makeBinary . BSC.pack . intToBin LittleEndian n . fromIntegral
+fii n = makeBinary . BSLC.pack . intToBin LittleEndian n . fromIntegral
 tii :: Binary a => Int -> a -> (Int, a)
 tii _ str = let
 	(t, d) = getBytes 4 str in
 	(fromIntegral $ ti t, d)
 
-instance Binary BS.ByteString where
-	getBytes n = BS.take n &&& BS.drop n
+instance Binary BSL.ByteString where
+	getBytes n = BSL.take (fromIntegral n) &&& BSL.drop (fromIntegral n)
 	makeBinary = id
+
+	concatBinary = BSL.concat
+	emptyBinary = (== 0) . BSL.length
+
+instance Binary BS.ByteString where
+	getBytes n = BSL.fromChunks . (: []) . BS.take n &&& BS.drop n
+	makeBinary = BS.concat . BSL.toChunks
 
 	concatBinary = BS.concat
 	emptyBinary = (== 0) . BS.length
 
+lintToBin :: Int -> Integer -> String
 lintToBin = intToBin LittleEndian
 
 intToBin :: Endian -> Int -> Integer -> String

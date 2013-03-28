@@ -21,7 +21,7 @@ import Language.Haskell.TH.Quote
 import Data.Traversable hiding (mapM)
 import Data.Either
 import Data.Maybe
-import qualified Data.ByteString.Char8 as BSC
+import qualified Data.ByteString.Lazy.Char8 as BSLC
 
 import ParseBinaryStructure
 
@@ -144,7 +144,7 @@ equal' x y = infixE (Just $ litE $ stringL x) (varE '(==)) (Just y)
 
 takeE' :: ExpQ -> ExpQ -> ExpQ
 takeE' n xs = -- appE (varE 'ts) $ appsE [varE 'tk, n, xs]
-	appE (varE 'BSC.unpack) $ appE (varE 'fst) $ appsE [varE 'getBytes, n, xs]
+	appE (varE 'BSLC.unpack) $ appE (varE 'fst) $ appsE [varE 'getBytes, n, xs]
 
 dropE' :: ExpQ -> ExpQ -> ExpQ
 dropE' n xs = appsE [varE 'dp, n, xs]
