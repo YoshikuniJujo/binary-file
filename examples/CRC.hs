@@ -11,7 +11,7 @@ crc = xor 0xffffffff . foldl crc' 0xffffffff
 	where
 	crc' :: Word32 -> Char -> Word32
 	crc' c x =
-		let i = (xor c $ fromIntegral $ ord x) .&. 0xff
+		let i = xor c (fromIntegral $ ord x) .&. 0xff
 		 in xor (table ! i) $ shiftR c 8
 	table :: Array Word32 Word32
 	table =

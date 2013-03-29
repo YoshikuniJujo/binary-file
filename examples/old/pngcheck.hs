@@ -18,8 +18,7 @@ instance RetType Integer where
 	toType = fromIntegral . tiBE
 
 getTest :: IO PNG
-getTest = do
-	readPNG `fmap` readBinaryFile "out.png"
+getTest = readPNG `fmap` readBinaryFile "out.png"
 
 [binary|
 

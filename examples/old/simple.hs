@@ -12,8 +12,8 @@ main = do
 	cnt <- BS.readFile inf
 
 	let (bmp, rest) = readBitmap () $ cnt `BS.append` "  rest                "
-	putStrLn $ (++ "...") $ take 4000 $ show $ bmp
-	putStrLn $ (++ "...") $ show $ bmp
+	putStrLn $ (++ "...") $ take 4000 $ show bmp
+	putStrLn $ (++ "...") $ show bmp
 	print rest
 
 	let out = writeBitmap bmp {
@@ -37,7 +37,7 @@ instance RetType Word8 where
 
 instance RetType (Word8, Word8, Word8) where
 	type Argument (Word8, Word8, Word8) = Int
-	fromType n (b, g, r) = cc $ [
+	fromType n (b, g, r) = cc [
 		fromType 1 b, fromType 1 g, fromType 1 r, zero]
 	toType n str = let
 		(b, rest) = toType 1 str
