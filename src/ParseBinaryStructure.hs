@@ -1,4 +1,9 @@
-{-# LANGUAGE TemplateHaskell, QuasiQuotes, FlexibleContexts, FlexibleInstances #-}
+{-# LANGUAGE
+	TemplateHaskell,
+	QuasiQuotes,
+	FlexibleContexts,
+	FlexibleInstances,
+	PackageImports #-}
 
 {-# OPTIONS_GHC
 	-fno-warn-unused-do-bind
@@ -11,6 +16,7 @@ module ParseBinaryStructure (
 
 	BinaryStructure,
 	binaryStructureName,
+	binaryStructureArgName,
 	binaryStructureArgType,
 	binaryStructureBody,
 
@@ -20,10 +26,10 @@ module ParseBinaryStructure (
 	valueOf,
 
 	Expression,
+	expression,
 	Binary(..),
 	Field(..),
-	fii, -- fiiBE,
-	tii, -- tiiBE,
+	fii, tii,
 	dp, fs, cc
 ) where
 
@@ -33,6 +39,9 @@ import Numeric
 
 import Classes
 
+import "monads-tf" Control.Monad.Reader
+import Control.Applicative
+
 parseBinaryStructure :: String -> BinaryStructure
 parseBinaryStructure src = case parseString top "<code>" src of
 	Right bs -> bs
@@ -40,6 +49,7 @@ parseBinaryStructure src = case parseString top "<code>" src of
 
 data BinaryStructure = BinaryStructure {
 	binaryStructureName :: String,
+	binaryStructureArgName :: String,
 	binaryStructureArgType :: TypeQ,
 	binaryStructureBody :: [BinaryStructureItem]
  }
@@ -50,20 +60,24 @@ data BinaryStructureItem = BinaryStructureItem {
 	valueOf :: Either (Either Int String) String
  }
 
-type Expression	= Name -> Name -> ExpQ
+type Expression	= Reader (Name, Name, String) ExpQ
+
+expression :: Name -> Name -> String -> Expression -> ExpQ
+expression ret arg argn e = runReader e (ret, arg, argn)
 
 applyOp :: Name -> Expression -> Expression -> Expression
-applyOp op e1 e2 ret arg = infixApp (e1 ret arg) (varE op) (e2 ret arg)
+applyOp op re1 re2 = flip infixApp (varE op) <$> re1 <*> re2
 
 [peggy|
 
 top :: BinaryStructure
 	= emptyLines name emptyLines argType dat*
-				{ BinaryStructure $2 $4 $5 }
+				{ BinaryStructure $2 (fst $4) (snd $4) $5 }
 
-argType :: TypeQ
-	= typ [\n]+		{ $1 }
-	/ ""			{ conT $ mkName "()" }
+argType :: (String, TypeQ)
+	= spaces var spaces '::' spaces typeGen [\n]+
+				{ ($2, $5) }
+	/ ""			{ ("_", conT $ mkName "()") }
 
 emptyLines :: ()
 	= "--" [^\n]* [\n]	{ () }
@@ -102,20 +116,20 @@ expr :: Expression
 	= expr spaces '*' spaces expr		{ applyOp (mkName "*") $1 $4 }
 	/ expr spaces '`div`' spaces expr	{ applyOp (mkName "div") $1 $4 }
 	/ expr spaces '+' spaces expr		{ applyOp (mkName "+") $1 $4 }
-	/ num			{ const $ const $ litE $ integerL $ fromIntegral $1 }
-	/ var			{ if $1 == "arg"
-					then const varE
-					else const . appE (varE $ mkName $1) . varE }
+	/ num			{ return $ litE $ integerL $ fromIntegral $1 }
+	/ var			{ ask >>= \(ret, arg, argn) -> return $
+					if $1 == argn
+						then varE arg
+						else appE (varE $ mkName $1) $
+							varE ret }
 	/ [(] tupleExpr [)]	{ $2 }
-	/ 'Just' spaces expr	{ \ret arg -> appE (conE $ mkName "Just") $
-					$2 ret arg }
-	/ 'Nothing'		{ const $ const $ conE $ mkName "Nothing" }
+	/ 'Just' spaces expr	{ appE (conE $ mkName "Just") <$> $2 }
+	/ 'Nothing'		{ return $ conE $ mkName "Nothing" }
 
 tupleExpr :: Expression
-	= expr ', ' expr	{ \ret arg -> tupE
-					[$1 ret arg, $2 ret arg] }
+	= expr ', ' expr	{ (\e1 e2 -> tupE [e1, e2]) <$> $1 <*> $2 }
 	/ expr
-	/ ""			{ const $ const $ conE $ mkName "()" }
+	/ ""			{ return $ conE $ mkName "()" }
 
 size :: Expression
 	= '[' expr ']'

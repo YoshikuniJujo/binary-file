@@ -228,7 +228,7 @@ SRGB
 
 CHRM
 
-<Int>
+arg :: Int
 
 (4, Just (arg `div` 4))<[Int]>: chrms
 
@@ -238,7 +238,7 @@ CHRM
 
 PLTE
 
-<Int>
+arg :: Int
 
 ((), Just (arg `div` 3))<[(Int, Int, Int)]>: colors
 
@@ -265,7 +265,7 @@ BKGD
 
 IDAT
 
-<Int>
+arg :: Int
 
 arg<BSL.ByteString>: idat
 --((), Just arg)<String>: idat
@@ -276,7 +276,7 @@ arg<BSL.ByteString>: idat
 
 TEXT
 
-<Int>
+arg :: Int
 
 ((), Just arg)<String>: text
 

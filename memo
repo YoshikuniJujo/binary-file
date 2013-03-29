@@ -296,3 +296,11 @@ class Binary b where
 
 もしかすると、ByteString ではなく
  Lazy.ByteString を中間形式にするべきかもしれない。
+
+2013.03.29 Fri.
+
+Expression について。
+expression 関数を ParseBinaryStructure に移す。
+それによって、Expression の中身を隠蔽できる。
+そうすれば、内部的に Expression を Reader モナドで表現するようにしても、
+他の module への変更は不必要となる。
