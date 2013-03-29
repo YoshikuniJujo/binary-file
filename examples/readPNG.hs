@@ -12,55 +12,18 @@ import Codec.Compression.Zlib
 import CRC (crc)
 import Control.Applicative
 
+main :: IO ()
 main = do
 	[fin, fout] <- getArgs
---	cnt <- readBinaryFile fin
 	cnt <- BS.readFile fin
-	let (png, rest) = fromBinary () cnt
+	let (png, _) = fromBinary () cnt
 
 	putStrLn $ take 1000 (show png) ++ "..."
-
---	writeBinaryFile fout $ toBinary () png
---	BS.writeFile fout $ writePNG () png
-
-	let	ChankIDAT idt = chankData $ chanks png !! 6
-		dat = idat idt
-{- ---
-		dec = decompress dat
-		recomp = compressWith defaultCompressParams {
-			compressLevel = bestCompression,
---			compressLevel = bestSpeed,
-			compressWindowBits = WindowBits 15
-		 } dec
-{-
-	print $ length dat
-	print $ length recomp
--}
-
-	let	chank6 = chanks png !! 6
-		newDat = chank6 {
-			chankSize = fromIntegral $ BSL.length recomp,
-			chankData = ChankIDAT $ IDAT recomp,
-			chankCRC = crc $ "IDAT" ++ BSL.unpack recomp
-		 }
-		new = png {
-			chanks = take 6 (chanks png) ++ [newDat] ++
-				drop 7 (chanks png)
-		 }
-{-
-	print new
--}
-
-	print $ dat == recomp
---- -}
-
---	BS.writeFile fout $ toBinary () new
 
 	let	dat = makeData png
 		decomp = decompress dat
 		recomp = compressWith defaultCompressParams {
 			compressLevel = bestCompression,
---			compressLevel = bestSpeed,
 			compressWindowBits = WindowBits 10
 		 } decomp
 		newData = makeDataChank recomp
@@ -68,12 +31,6 @@ main = do
 			chanks = headerChanks png ++ newData ++
 				footerChanks png
 		 }
-{-
-		newnew = png {
-			chanks = head (chanks png) : newData ++
-				[last $ chanks png]
-		 }
--}
 	BS.writeFile fout $ toBinary () newnew
 	print $ dat == recomp
 
@@ -146,7 +103,7 @@ toIntgr = mkNum . map fromIntegral . BSL.unpack
 
 mkNum :: [Integer] -> Integer
 mkNum [] = 0
-mkNum (x : xs) = x + 2 ^ 8 * mkNum xs
+mkNum (x : xs) = x + 2 ^ (8 :: Integer) * mkNum xs
 
 data ChankBody
 	= ChankIHDR IHDR
@@ -163,32 +120,32 @@ data ChankBody
 
 instance Field ChankBody where
 	type FieldArgument ChankBody = (Int, String)
-	toBinary _ (ChankIHDR ihdr) = toBinary () ihdr
-	toBinary _ (ChankGAMA gama) = toBinary () gama
-	toBinary _ (ChankSRGB srgb) = toBinary () srgb
+	toBinary _ (ChankIHDR c) = toBinary () c
+	toBinary _ (ChankGAMA c) = toBinary () c
+	toBinary _ (ChankSRGB c) = toBinary () c
 	toBinary (n, _) (ChankCHRM chrm) = toBinary n chrm
 	toBinary (n, _) (ChankPLTE plte) = toBinary n plte
-	toBinary _ (ChankBKGD bkgd) = toBinary () bkgd
-	toBinary (n, _) (ChankIDAT idat) = toBinary n idat
-	toBinary (n, _) (ChankTEXT text) = toBinary n text
-	toBinary _ (ChankIEND iend) = toBinary () iend
+	toBinary _ (ChankBKGD c) = toBinary () c
+	toBinary (n, _) (ChankIDAT c) = toBinary n c
+	toBinary (n, _) (ChankTEXT c) = toBinary n c
+	toBinary _ (ChankIEND c) = toBinary () c
 	toBinary (n, _) (Others str) = toBinary ((), Just n) str
 	fromBinary (_, "IHDR") str = let (ihdr, rest) = fromBinary () str in
 		(ChankIHDR ihdr, rest)
 	fromBinary (_, "gAMA") str = let (gama, rest) = fromBinary () str in
 		(ChankGAMA gama, rest)
-	fromBinary (_, "sRGB") str = let (srgb, rest) = fromBinary () str in
-		(ChankSRGB srgb, rest)
+	fromBinary (_, "sRGB") str = let (c, rest) = fromBinary () str in
+		(ChankSRGB c, rest)
 	fromBinary (n, "cHRM") str = let (chrm, rest) = fromBinary n str in
 		(ChankCHRM chrm, rest)
 	fromBinary (n, "PLTE") str = let (plte, rest) = fromBinary n str in
 		(ChankPLTE plte, rest)
-	fromBinary (_, "bKGD") str = let (bkgd, rest) = fromBinary () str in
-		(ChankBKGD bkgd, rest)
-	fromBinary (n, "IDAT") str = let (idat, rest) = fromBinary n str in
-		(ChankIDAT idat, rest)
-	fromBinary (n, "tEXt") str = let (text, rest) = fromBinary n str in
-		(ChankTEXT text, rest)
+	fromBinary (_, "bKGD") str = let (c, rest) = fromBinary () str in
+		(ChankBKGD c, rest)
+	fromBinary (n, "IDAT") str = let (c, rest) = fromBinary n str in
+		(ChankIDAT c, rest)
+	fromBinary (n, "tEXt") str = let (c, rest) = fromBinary n str in
+		(ChankTEXT c, rest)
 	fromBinary (_, "IEND") str = let (iend, rest) = fromBinary () str in
 		(ChankIEND iend, rest)
 	fromBinary (n, _) str = let (others, rest) = fromBinary ((), Just n) str in

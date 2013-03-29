@@ -54,8 +54,8 @@ mkInst bsn argn typ body =
 
 writing :: String -> String -> [BinaryStructureItem] -> DecQ
 writing name argn body = do
-	arg <- newName "arg"
-	bs <- newName "bs"
+	arg <- newName "_arg"
+	bs <- newName "_bs"
 	let run = appE (varE 'cc) $ listE $ map
 		(\bsi -> writeField bs arg argn (bytesOf bsi) (valueOf bsi)) body
 	funD (mkName name)
@@ -81,8 +81,8 @@ fieldValueToStr bs arg argn size True = \val ->
 
 reading :: String -> String -> String -> [BinaryStructureItem] -> DecQ
 reading name bsn argn body = do
-	arg <- newName "arg"
-	cs <- newName "cs"
+	arg <- newName "_arg"
+	cs <- newName "cs1"
 	ret <- newName "ret"
 	funD (mkName name) [clause [varP arg, varP cs]
 		(normalB $ mkLetRec ret $ mkBody bsn arg argn body cs) []]
@@ -154,19 +154,9 @@ gather s (x : xs) f = do
 	(zs, s'') <- gather s' xs f
 	return (ys ++ zs, s'')
 
-mkInstance :: String -> DecQ
-mkInstance name =
-	instanceD (cxt []) (appT (conT ''Field) (conT $ mkName name)) [
-		valD (varP $ 'toBinary)
-			(normalB $ varE $ mkName $ "write" ++ name) [],
-		valD (varP $ 'fromBinary)
-			(normalB $ varE $ mkName $ "read" ++ name) []
-	 ]
-
 mkData :: String -> [BinaryStructureItem] -> DecsQ
 mkData bsn body = do
 	d <- dataD (cxt []) name [] [con] [''Show]
-	_ <- mkInstance bsn
 	return [d]
 	where
 	name = mkName bsn
