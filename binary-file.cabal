@@ -2,7 +2,7 @@ build-type:	Simple
 cabal-version:	>= 1.8
 
 name:		binary-file
-version:	0.13.1
+version:	0.13.2
 stability:	experimental
 author:		Yoshikuni Jujo <PAF01143@nifty.ne.jp>
 maintainer:	Yoshikuni Jujo <PAF01143@nifty.ne.jp>
@@ -14,6 +14,8 @@ category:	File
 synopsis:	read/write binary file
 description:
 
+    See example directory's sample code.
+    .
     > runghc -XQuasiQuotes -XTypeFamilies -XFlexibleInstances exam.hs some.bmp
     .
     exam.hs:
@@ -76,7 +78,7 @@ source-repository	head
 source-repository	this
     type:	git
     location:	git://github.com/YoshikuniJujo/binary-file.git
-    tag:	0.13.1
+    tag:	0.13.2
 
 library
     hs-source-dirs:	src
@@ -84,5 +86,6 @@ library
         File.Binary.Data.LittleEndian,
         File.Binary.Data.BigEndian
     other-modules:	QuoteBinaryStructure, ParseBinaryStructure, Classes
-    build-depends:	base > 3 && < 5, template-haskell, peggy, bytestring
+    build-depends:	base > 3 && < 5, template-haskell, peggy, bytestring,
+        monads-tf
     ghc-options:	-Wall
