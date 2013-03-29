@@ -1,4 +1,5 @@
 {-# LANGUAGE QuasiQuotes, TypeFamilies, FlexibleInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 import File.Binary
 import File.Binary.Data.BigEndian
