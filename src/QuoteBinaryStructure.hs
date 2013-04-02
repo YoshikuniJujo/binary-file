@@ -9,8 +9,8 @@ module QuoteBinaryStructure (
 	binary,
 	Field(..),
 	Binary(..),
-	fii, -- fiiBE,
-	tii, -- tiiBE,
+--	fii, -- fiiBE,
+--	tii, -- tiiBE,
 	times
 ) where
 
@@ -24,6 +24,7 @@ import Data.Maybe
 import qualified Data.ByteString.Lazy.Char8 as BSLC
 
 import ParseBinaryStructure
+import Classes
 
 binary :: QuasiQuoter
 binary = QuasiQuoter {
@@ -56,7 +57,7 @@ writing :: String -> String -> [BinaryStructureItem] -> DecQ
 writing name argn body = do
 	arg <- newName "_arg"
 	bs <- newName "_bs"
-	let run = appE (varE 'cc) $ listE $ map
+	let run = appE (varE 'concatBinary) $ listE $ map
 		(\bsi -> writeField bs arg argn (bytesOf bsi) (valueOf bsi)) body
 	funD (mkName name)
 		[clause [varP arg, varP bs] (normalB run) []]
@@ -72,11 +73,14 @@ writeField _ _ _ _ (Left (Right s)) =
 writeField bs arg argn bytes (Right v) =
 	fieldValueToStr bs arg argn bytes False $ getField bs v
 
+fs :: Binary a => String -> a
+fs = makeBinary . BSLC.pack
+
 fieldValueToStr :: Name -> Name -> String -> Expression -> Bool -> ExpQ -> ExpQ
 fieldValueToStr bs arg argn size False =
 	appE $ appE (varE 'toBinary) (expression bs arg argn size)
 fieldValueToStr bs arg argn size True = \val ->
-	appE (varE 'cc) $ appsE [
+	appE (varE 'concatBinary) $ appsE [
 		varE 'map, appE (varE 'toBinary) (expression bs arg argn size), val]
 
 reading :: String -> String -> String -> [BinaryStructureItem] -> DecQ
@@ -146,6 +150,9 @@ takeE' n xs = -- appE (varE 'ts) $ appsE [varE 'tk, n, xs]
 
 dropE' :: ExpQ -> ExpQ -> ExpQ
 dropE' n xs = appsE [varE 'dp, n, xs]
+
+dp :: Binary a => Int -> a -> a
+dp n = snd . getBytes n
 
 gather :: Monad m => s -> [a] -> (a -> s -> m ([b], s)) -> m ([b], s)
 gather s [] _ = return ([], s)

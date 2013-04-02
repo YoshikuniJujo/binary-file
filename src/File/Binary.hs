@@ -4,8 +4,8 @@ module File.Binary (
 	binary,
 	Field(..),
 	Binary(..),
-	tii, -- tiiBE,
-	fii, -- fiiBE
+--	tii, -- tiiBE,
+--	fii, -- fiiBE
 --	times
  ) where
 

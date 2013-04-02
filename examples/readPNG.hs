@@ -8,7 +8,6 @@ import Data.Word
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.ByteString.Lazy as BSL
-import qualified Data.ByteString.Lazy.Char8 as BSLC
 import Codec.Compression.Zlib
 import CRC (crc)
 import Control.Applicative
@@ -87,7 +86,7 @@ Chank
 
 instance Field Word32 where
 	type FieldArgument Word32 = Int
-	toBinary n = makeBinary . BSLC.pack . reverse . lintToBin n . fromIntegral
+	toBinary n = makeBinary . BSL.pack . intToWords n
 	fromBinary n s = (fromIntegral $ toIntgr $ BSL.reverse t, d)
 		where
 		(t, d) = getBytes n s

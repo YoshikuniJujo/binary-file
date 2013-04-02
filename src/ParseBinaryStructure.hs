@@ -27,17 +27,11 @@ module ParseBinaryStructure (
 
 	Expression,
 	expression,
-	Binary(..),
-	Field(..),
-	fii, tii,
-	dp, fs, cc
 ) where
 
 import Text.Peggy
 import Language.Haskell.TH
 import Numeric
-
-import Classes
 
 import "monads-tf" Control.Monad.Reader
 import Control.Applicative
