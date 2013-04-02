@@ -2,7 +2,8 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 import File.Binary
-import File.Binary.Data.BigEndian
+import File.Binary.Instances()
+import File.Binary.Instances.BigEndian
 import System.Environment
 import Data.Word
 import qualified Data.ByteString as BS

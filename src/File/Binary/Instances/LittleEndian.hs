@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module File.Binary.Data.LittleEndian where
+module File.Binary.Instances.LittleEndian where
 
 import Classes
 import qualified Data.ByteString.Lazy as BSL

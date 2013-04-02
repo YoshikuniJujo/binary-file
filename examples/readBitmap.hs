@@ -1,10 +1,13 @@
 {-# LANGUAGE QuasiQuotes, TypeFamilies, FlexibleInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 import File.Binary
-import File.Binary.Data.LittleEndian
+import File.Binary.Instances.LittleEndian()
+import File.Binary.Instances()
 import System.Environment
 import qualified Data.ByteString.Lazy as BSL
 
+main :: IO ()
 main = do
 	[inf] <- getArgs
 	cnt <- readBinaryFile inf

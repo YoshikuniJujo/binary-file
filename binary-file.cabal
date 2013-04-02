@@ -21,7 +21,8 @@ description:
     exam.hs:
     .
     > import File.Binary
-    > import File.Binary.Data.LittleEndian
+    > import File.Binary.Instances
+    > import File.Binary.Instances.LittleEndian
     > import System.Environment
     > import Data.ByteString.Lazy as BSL
     >
@@ -82,9 +83,11 @@ source-repository	this
 
 library
     hs-source-dirs:	src
-    exposed-modules:	File.Binary,
-        File.Binary.Data.LittleEndian,
-        File.Binary.Data.BigEndian
+    exposed-modules:
+        File.Binary,
+        File.Binary.Instances
+        File.Binary.Instances.LittleEndian,
+        File.Binary.Instances.BigEndian
     other-modules:	QuoteBinaryStructure, ParseBinaryStructure, Classes
     build-depends:	base > 3 && < 5, template-haskell, peggy, bytestring,
         monads-tf

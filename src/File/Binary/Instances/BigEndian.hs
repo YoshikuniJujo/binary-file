@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module File.Binary.Data.BigEndian (
+module File.Binary.Instances.BigEndian (
 	intToWords
 ) where
 
