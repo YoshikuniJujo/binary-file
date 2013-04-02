@@ -6,7 +6,7 @@
 
 module File.Binary.Instances () where
 
-import Classes
+import File.Binary.Classes (Field(..), Binary(..))
 import qualified Data.ByteString as BS
 	(ByteString, take, drop, length, concat)
 import qualified Data.ByteString.Lazy as BSL

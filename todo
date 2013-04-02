@@ -1,9 +1,10 @@
-1. bits を指定できるようにする
+1. bits を指定できるようにするかどうか考える
 2. 空行とコメント、コメントとコメントの隣接を許す
 3. 読み捨て _ とかかな。
-4. 4(BE): hoge や 4(LE): hoge のような書きかた
-5. リファクタリング
-6. ByteString を切り離してもいいかもしれない
-7. deriving Show を任意にする
-8. class Binary をきれいにする
-9. ByteString ではなく Lazy.ByteString を中間として使うべきか考慮する
+4. リファクタリング
+5. ByteString を切り離してもいいかもしれない <- ただし lazy ByteString が必要
+6. deriving Show を任意にする
+7. class Binary をきれいにする
+8. ByteString ではなく Lazy.ByteString を中間として使っているがその正当性を考慮する
+9. class Binary で concatBinary ではなく、appendBinary を定義し、
+	concatBinary はそこから導くべきだろう

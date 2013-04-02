@@ -5,7 +5,7 @@ module File.Binary.Instances.BigEndian (
 	intToWords
 ) where
 
-import Classes
+import File.Binary.Classes
 import qualified Data.ByteString.Lazy as BSL
 import Data.Word
 

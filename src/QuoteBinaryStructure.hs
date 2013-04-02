@@ -24,7 +24,7 @@ import Data.Maybe
 import qualified Data.ByteString.Lazy.Char8 as BSLC
 
 import ParseBinaryStructure
-import Classes
+import File.Binary.Classes
 
 binary :: QuasiQuoter
 binary = QuasiQuoter {

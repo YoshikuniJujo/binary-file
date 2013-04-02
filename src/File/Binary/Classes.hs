@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Classes (Field(..), Binary(..)) where
+module File.Binary.Classes (Field(..), Binary(..)) where
 
 import Data.ByteString.Lazy (ByteString)
 
