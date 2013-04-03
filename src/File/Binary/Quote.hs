@@ -33,7 +33,7 @@ binary = QuasiQuoter {
 	quoteExp = undefined,
 	quotePat = undefined,
 	quoteType = undefined,
-	quoteDec = mkHaskellTree . parseBinaryStructure
+	quoteDec = mkHaskellTree . parse
  }
 
 mkHaskellTree :: BinaryStructure -> DecsQ
@@ -42,15 +42,15 @@ mkHaskellTree bs = do
 		i <- mkInst bsn argn typ body
 		return $ d ++ [i]
 	where
-	bsn = binaryStructureName bs
-	argn = binaryStructureArgName bs
-	typ = binaryStructureArgType bs
-	body = binaryStructureBody bs
+	bsn = bsName bs
+	argn = bsArgName bs
+	typ = bsArgType bs
+	body = bsBody bs
 
-mkInst :: String -> String -> TypeQ -> [BinaryStructureItem] -> DecQ
+mkInst :: Name -> String -> TypeQ -> [BinaryStructureItem] -> DecQ
 mkInst bsn argn typ body =
-	instanceD (cxt []) (appT (conT ''Field) (conT $ mkName bsn)) [
-		tySynInstD ''FieldArgument [conT $ mkName bsn] typ,
+	instanceD (cxt []) (appT (conT ''Field) (conT bsn)) [
+		tySynInstD ''FieldArgument [conT bsn] typ,
 		reading "fromBinary" bsn argn body,
 		writing "toBinary" argn body
 	 ]
@@ -85,7 +85,7 @@ fieldValueToStr bs arg argn size True = \val ->
 	appE (varE 'mconcat) $ appsE [
 		varE 'map, appE (varE 'toBinary) (expression bs arg argn size), val]
 
-reading :: String -> String -> String -> [BinaryStructureItem] -> DecQ
+reading :: String -> Name -> String -> [BinaryStructureItem] -> DecQ
 reading name bsn argn body = do
 	arg <- newName "_arg"
 	cs <- newName "cs1"
@@ -99,12 +99,12 @@ mkLetRec n f = do
 	letE [valD (tupP [varP n, varP rest]) (normalB $ f n) []] $
 		tupE [varE n, varE rest]
 
-mkBody :: String -> Name -> String -> [BinaryStructureItem] -> Name -> Name -> ExpQ
+mkBody :: Name -> Name -> String -> [BinaryStructureItem] -> Name -> Name -> ExpQ
 mkBody bsn arg argn body cs ret = do
 	namePairs <- for names $ \n -> return . (n ,) =<< newName "tmp"
 	(defs, rest) <- gather cs body $ mkDef namePairs
 	letE (map return defs) $ tupE
-		[recConE (mkName bsn) (map toPair2 namePairs), varE rest]
+		[recConE bsn (map toPair2 namePairs), varE rest]
 	where
 	names = rights $ map valueOf body
 	toPair2 (n, nn) = return (mkName n, VarE nn)
@@ -163,13 +163,13 @@ gather s (x : xs) f = do
 	(zs, s'') <- gather s' xs f
 	return (ys ++ zs, s'')
 
-mkData :: String -> [BinaryStructureItem] -> DecsQ
+mkData :: Name -> [BinaryStructureItem] -> DecsQ
 mkData bsn body = do
 	d <- dataD (cxt []) name [] [con] [''Show]
 	return [d]
 	where
-	name = mkName bsn
-	con = recC (mkName bsn) vsts
+	name = bsn
+	con = recC bsn vsts
 
 	vsts = flip map (filter isRight body) $ \item ->
 		varStrictType (mkName $ fromRight $ valueOf item) $

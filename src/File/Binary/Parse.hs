@@ -1,51 +1,36 @@
-{-# LANGUAGE
-	TemplateHaskell,
-	QuasiQuotes,
-	FlexibleContexts,
-	FlexibleInstances,
-	PackageImports #-}
+{-# LANGUAGE TemplateHaskell, QuasiQuotes, FlexibleContexts, PackageImports #-}
 
 {-# OPTIONS_GHC
 	-fno-warn-unused-do-bind
 	-fno-warn-unused-matches
-	-fno-warn-name-shadowing
-	-fno-warn-orphans #-}
+	-fno-warn-name-shadowing #-}
 
 module File.Binary.Parse (
-	parseBinaryStructure,
-
-	BinaryStructure,
-	binaryStructureName,
-	binaryStructureArgName,
-	binaryStructureArgType,
-	binaryStructureBody,
-
-	BinaryStructureItem,
-	bytesOf,
-	typeOf,
-	valueOf,
-
-	Expression,
-	expression,
+	parse,
+	BinaryStructure, bsName, bsArgName, bsArgType, bsBody,
+	BinaryStructureItem, bytesOf, typeOf, valueOf,
+	Expression, expression,
 ) where
 
-import Text.Peggy
-import Language.Haskell.TH
-import Numeric
+import Control.Applicative ((<$>), (<*>))
+import "monads-tf" Control.Monad.Reader (Reader, runReader, ask)
+import Numeric (readHex)
 
-import "monads-tf" Control.Monad.Reader
-import Control.Applicative
+import Text.Peggy (peggy, parseString, space, defaultDelimiter)
+import Language.Haskell.TH (
+	ExpQ, litE, varE, appE, conE, tupE, integerL, infixApp,
+	TypeQ, appT, conT, listT, tupleT, Name, mkName)
 
-parseBinaryStructure :: String -> BinaryStructure
-parseBinaryStructure src = case parseString top "<code>" src of
-	Right bs -> bs
-	Left ps -> error $ show ps
+--------------------------------------------------------------------------------
+
+parse :: String -> BinaryStructure
+parse = either (error . show) id . parseString top ""
 
 data BinaryStructure = BinaryStructure {
-	binaryStructureName :: String,
-	binaryStructureArgName :: String,
-	binaryStructureArgType :: TypeQ,
-	binaryStructureBody :: [BinaryStructureItem]
+	bsName :: Name,
+	bsArgName :: String,
+	bsArgType :: TypeQ,
+	bsBody :: [BinaryStructureItem]
  }
 
 data BinaryStructureItem = BinaryStructureItem {
@@ -66,7 +51,7 @@ applyOp op re1 re2 = flip infixApp (varE op) <$> re1 <*> re2
 
 top :: BinaryStructure
 	= emptyLines name emptyLines argType dat*
-				{ BinaryStructure $2 (fst $4) (snd $4) $5 }
+				{ BinaryStructure (mkName $2) (fst $4) (snd $4) $5 }
 
 argType :: (String, TypeQ)
 	= spaces var spaces '::' spaces typeGen [\n]+
