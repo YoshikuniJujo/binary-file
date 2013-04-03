@@ -52,7 +52,7 @@ Bitmap
 4: resolutionV
 4: color_num
 4: important_colors_num
-((), Just color_num)<[(Int, Int, Int)]>: colors
-((), Just image_size)<String>: image
+((), Just color_num){[(Int, Int, Int)]}: colors
+((), Just image_size){String}: image
 
 |]

@@ -19,7 +19,6 @@ import Prelude hiding (sequence)
 import Language.Haskell.TH hiding (Type)
 import Language.Haskell.TH.Quote
 import Data.Traversable hiding (mapM)
-import Data.Either
 import Data.Maybe
 import qualified Data.ByteString.Lazy.Char8 as BSLC
 
@@ -47,7 +46,7 @@ mkHaskellTree bs = do
 	typ = bsArgType bs
 	body = bsBody bs
 
-mkInst :: Name -> String -> TypeQ -> [BinaryStructureItem] -> DecQ
+mkInst :: Name -> Name -> TypeQ -> [BinaryStructureItem] -> DecQ
 mkInst bsn argn typ body =
 	instanceD (cxt []) (appT (conT ''Field) (conT bsn)) [
 		tySynInstD ''FieldArgument [conT bsn] typ,
@@ -55,7 +54,7 @@ mkInst bsn argn typ body =
 		writing "toBinary" argn body
 	 ]
 
-writing :: String -> String -> [BinaryStructureItem] -> DecQ
+writing :: String -> Name -> [BinaryStructureItem] -> DecQ
 writing name argn body = do
 	arg <- newName "_arg"
 	bs <- newName "_bs"
@@ -64,28 +63,29 @@ writing name argn body = do
 	funD (mkName name)
 		[clause [varP arg, varP bs] (normalB run) []]
 
-writeField :: Name -> Name -> String -> Expression -> Either (Either Int String) String -> ExpQ
-writeField bs arg argn size (Left (Left n)) =
-	appsE [fiend', expression bs arg argn size, sigE (litE $ integerL $ fromIntegral n)
+writeField :: Name -> Name -> Name -> Expression -> Value -> ExpQ
+writeField bs arg argn size (Constant (Left n)) =
+	appsE [fiend', expression (varE bs) (varE arg) argn size,
+		sigE (litE $ integerL $ fromIntegral n)
 		(conT ''Int)]
 	where
 	fiend' = varE 'toBinary
-writeField _ _ _ _ (Left (Right s)) =
+writeField _ _ _ _ (Constant (Right s)) =
 	appsE [varE 'fs, litE $ stringL s]
-writeField bs arg argn bytes (Right v) =
+writeField bs arg argn bytes (Variable v) =
 	fieldValueToStr bs arg argn bytes False $ getField bs v
 
 fs :: Binary a => String -> a
 fs = makeBinary . BSLC.pack
 
-fieldValueToStr :: Name -> Name -> String -> Expression -> Bool -> ExpQ -> ExpQ
+fieldValueToStr :: Name -> Name -> Name -> Expression -> Bool -> ExpQ -> ExpQ
 fieldValueToStr bs arg argn size False =
-	appE $ appE (varE 'toBinary) (expression bs arg argn size)
+	appE $ appE (varE 'toBinary) (expression (varE bs) (varE arg) argn size)
 fieldValueToStr bs arg argn size True = \val ->
 	appE (varE 'mconcat) $ appsE [
-		varE 'map, appE (varE 'toBinary) (expression bs arg argn size), val]
+		varE 'map, appE (varE 'toBinary) (expression (varE bs) (varE arg) argn size), val]
 
-reading :: String -> Name -> String -> [BinaryStructureItem] -> DecQ
+reading :: String -> Name -> Name -> [BinaryStructureItem] -> DecQ
 reading name bsn argn body = do
 	arg <- newName "_arg"
 	cs <- newName "cs1"
@@ -99,18 +99,18 @@ mkLetRec n f = do
 	letE [valD (tupP [varP n, varP rest]) (normalB $ f n) []] $
 		tupE [varE n, varE rest]
 
-mkBody :: Name -> Name -> String -> [BinaryStructureItem] -> Name -> Name -> ExpQ
+mkBody :: Name -> Name -> Name -> [BinaryStructureItem] -> Name -> Name -> ExpQ
 mkBody bsn arg argn body cs ret = do
 	namePairs <- for names $ \n -> return . (n ,) =<< newName "tmp"
 	(defs, rest) <- gather cs body $ mkDef namePairs
 	letE (map return defs) $ tupE
 		[recConE bsn (map toPair2 namePairs), varE rest]
 	where
-	names = rights $ map valueOf body
-	toPair2 (n, nn) = return (mkName n, VarE nn)
-	mkDef :: [(String, Name)] -> BinaryStructureItem -> Name -> Q ([Dec], Name)
+	names = variables $ map valueOf body
+	toPair2 (n, nn) = return (n, VarE nn)
+	mkDef :: [(Name, Name)] -> BinaryStructureItem -> Name -> Q ([Dec], Name)
 	mkDef np item cs'
-	    | Left (Left val) <- valueOf item = do
+	    | Constant (Left val) <- valueOf item = do
 		cs'' <- newName "cs"
 		let	t = dropE' n $ varE cs'
 			p = val `equal` appE (varE 'fst)
@@ -119,28 +119,28 @@ mkBody bsn arg argn body cs ret = do
 			e = [e| error "bad value" |]
 		d <- valD (varP cs'') (normalB $ condE p t e) []
 		return ([d], cs'')
-	    | Left (Right val) <- valueOf item = do
+	    | Constant (Right val) <- valueOf item = do
 		cs'' <- newName "cs"
 		let t = dropE' n $ varE cs'
 		let p = val `equal'` takeE' n (varE cs')
 		let e = [e| error "bad value" |]
 		d <- valD (varP cs'') (normalB $ condE p t e) []
 		return ([d], cs'')
-	    | Right var <- valueOf item = do
+	    | Variable var <- valueOf item = do
 		cs'' <- newName "cs"
 		def <- valD (tupP [varP $ fromJust $ lookup var np, varP cs''])
 			(normalB $ appE (appE (varE 'fromBinary) arg') $ varE cs') []
 		return ([def], cs'')
 	    | otherwise = error "bad"
 	    where
-	    n = expression ret arg argn $ bytesOf item
-	    arg' = expression ret arg argn $ bytesOf item
+	    n = expression (varE ret) (varE arg) argn $ bytesOf item
+	    arg' = expression (varE ret) (varE arg) argn $ bytesOf item
 
-getField :: Name -> String -> ExpQ
-getField bs v = appE (varE $ mkName v) (varE bs)
+getField :: Name -> Name -> ExpQ
+getField bs v = appE (varE v) (varE bs)
 
-equal :: Int -> ExpQ -> ExpQ
-equal x y = infixE (Just $ sigE (litE $ integerL $ fromIntegral x) (conT ''Int))
+equal :: Integer -> ExpQ -> ExpQ
+equal x y = infixE (Just $ sigE (litE $ integerL x) (conT ''Integer))
 	(varE '(==)) (Just y)
 
 equal' :: String -> ExpQ -> ExpQ
@@ -172,18 +172,15 @@ mkData bsn body = do
 	con = recC bsn vsts
 
 	vsts = flip map (filter isRight body) $ \item ->
-		varStrictType (mkName $ fromRight $ valueOf item) $
+		varStrictType (variable $ valueOf item) $
 			strictType notStrict $ mkType False $ typeOf item
 	isRight item
-		| Right _ <- valueOf item = True
+		| Variable _ <- valueOf item = True
 		| otherwise = False
 
 mkType :: Bool -> TypeQ -> TypeQ
 mkType True t = appT listT $ mkType False t
 mkType False typ = typ
-
-fromRight :: Either a b -> b
-fromRight = either (error "not Right") id
 
 times :: Int -> (s -> (ret, s)) -> s -> ([ret], s)
 times 0 _ s = ([], s)

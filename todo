@@ -8,3 +8,6 @@
 8. ByteString ではなく Lazy.ByteString を中間として使っているがその正当性を考慮する
 9. class Binary で concatBinary ではなく、appendBinary を定義し、
 	concatBinary はそこから導くべきだろう
+10. Peggy で some = some some としたときに右結合になるのか左結合になるのか調べる
+11. また、上記の構造を避けることが可能か考える
+	module Parse の typ と exp のところを見直すこと

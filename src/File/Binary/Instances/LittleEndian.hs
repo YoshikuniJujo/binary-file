@@ -13,7 +13,12 @@ instance Field Int where
 	fromBinary n = first (wordsToInt . BSL.unpack) . getBytes n
 	toBinary n = makeBinary . BSL.pack . intToWords n
 
-wordsToInt :: [Word8] -> Int
+instance Field Integer where
+	type FieldArgument Integer = Int
+	fromBinary n = first (wordsToInt . BSL.unpack) . getBytes n
+	toBinary n = makeBinary . BSL.pack . intToWords n
+
+wordsToInt :: Integral i => [Word8] -> i
 wordsToInt = foldr (\w i -> fromIntegral w + 256 * i) 0
 
 intToWords :: Integral i => Int -> i -> [Word8]

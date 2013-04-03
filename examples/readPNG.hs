@@ -71,7 +71,7 @@ PNG
 2: "\r\n"
 1: "\SUB"
 1: "\n"
-((), Nothing)<[Chank]>: chanks
+((), Nothing){[Chank]}: chanks
 
 |]
 
@@ -80,9 +80,9 @@ PNG
 Chank
 
 4: chankSize
-((), Just 4)<String>: chankName
-(chankSize, chankName)<ChankBody>: chankData
-4<Word32>:chankCRC
+((), Just 4){String}: chankName
+(chankSize, chankName){ChankBody}: chankData
+4{Word32}:chankCRC
 
 |]
 
@@ -189,7 +189,7 @@ CHRM
 
 arg :: Int
 
-(4, Just (arg `div` 4))<[Int]>: chrms
+(4, Just (arg `div` 4)){[Int]}: chrms
 
 |]
 
@@ -199,7 +199,7 @@ PLTE
 
 arg :: Int
 
-((), Just (arg `div` 3))<[(Int, Int, Int)]>: colors
+((), Just (arg `div` 3)){[(Int, Int, Int)]}: colors
 
 |]
 
@@ -227,18 +227,21 @@ IDAT
 
 arg :: Int
 
-arg<BSL.ByteString>: idat
---((), Just arg)<String>: idat
+arg{BSL.ByteString}: idat
+--((), Just arg){String}: idat
 
 |]
 
 [binary|
 
 TEXT
+{-
+test {- hoge -}
+-}
 
 arg :: Int
 
-((), Just arg)<String>: text
+((), Just arg){String}: text
 
 |]
 

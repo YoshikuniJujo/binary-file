@@ -1,16 +1,14 @@
 {-# LANGUAGE QuasiQuotes #-}
 
 import Here
-import ParseBinaryStructure
+import File.Binary.Parse
 
 main :: IO ()
 main = do
 	putStrLn "ParseBinaryStructure"
-	print $ parseBinaryStructure [here|
+	print $ parse [here|
 
 BitmapFileHeader
-
-set big_endian
 
 2: 19778
 4: fileSize
@@ -38,17 +36,5 @@ imageSize<ByteString>: image
 10<ByteString>: hoge
 10<Some>: some
 10: "abc\n\r\SUB"
-10: 0x89
-
-repeat {
-
-Chank
-
-4: chankSize
-4<String>: chankData
-chankSize<String>: chankData
-4<Word32>:chankCRC
-
-}
 
 |]
