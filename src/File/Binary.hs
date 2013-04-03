@@ -9,7 +9,7 @@ module File.Binary (
 --	times
  ) where
 
-import QuoteBinaryStructure
+import File.Binary.Quote
 import System.IO
 
 readBinaryFile :: FilePath -> IO String

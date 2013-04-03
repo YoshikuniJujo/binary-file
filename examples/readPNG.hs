@@ -12,6 +12,7 @@ import qualified Data.ByteString.Lazy as BSL
 import Codec.Compression.Zlib
 import CRC (crc)
 import Control.Applicative
+import Data.Monoid
 
 main :: IO ()
 main = do
@@ -205,7 +206,7 @@ arg :: Int
 instance Field (Int, Int, Int) where
 	type FieldArgument (Int, Int, Int) = ()
 	toBinary _ (b, g, r) =
-		concatBinary [toBinary 1 b, toBinary 1 g, toBinary 1 r]
+		mconcat [toBinary 1 b, toBinary 1 g, toBinary 1 r]
 	fromBinary _ s = let
 		(b, rest) = fromBinary 1 s
 		(g, rest') = fromBinary 1 rest

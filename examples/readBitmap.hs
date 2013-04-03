@@ -6,6 +6,7 @@ import File.Binary.Instances.LittleEndian()
 import File.Binary.Instances()
 import System.Environment
 import qualified Data.ByteString.Lazy as BSL
+import Data.Monoid
 
 main :: IO ()
 main = do
@@ -23,7 +24,7 @@ instance Field (Int, Int, Int) where
 		(g, rest') = fromBinary 1 rest
 		(r, rest'') = fromBinary 1 rest' in
 		((b, g, r), snd $ getBytes 1 rest'')
-	toBinary _ (b, g, r) = concatBinary [
+	toBinary _ (b, g, r) = mconcat [
 		toBinary 1 b,
 		toBinary 1 g,
 		toBinary 1 r,

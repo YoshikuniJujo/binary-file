@@ -90,8 +90,8 @@ library
         File.Binary.Instances.BigEndian
     other-modules:
         File.Binary.Classes,
-        QuoteBinaryStructure,
-        ParseBinaryStructure
+        File.Binary.Parse,
+        File.Binary.Quote
     build-depends:	base > 3 && < 5, template-haskell, peggy, bytestring,
         monads-tf
     ghc-options:	-Wall

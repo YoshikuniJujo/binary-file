@@ -11,7 +11,7 @@
 	-fno-warn-name-shadowing
 	-fno-warn-orphans #-}
 
-module ParseBinaryStructure (
+module File.Binary.Parse (
 	parseBinaryStructure,
 
 	BinaryStructure,

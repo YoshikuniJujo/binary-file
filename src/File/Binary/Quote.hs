@@ -5,7 +5,7 @@
 	TypeSynonymInstances,
 	FlexibleInstances #-}
 
-module QuoteBinaryStructure (
+module File.Binary.Quote (
 	binary,
 	Field(..),
 	Binary(..),
@@ -23,7 +23,7 @@ import Data.Either
 import Data.Maybe
 import qualified Data.ByteString.Lazy.Char8 as BSLC
 
-import ParseBinaryStructure
+import File.Binary.Parse
 import File.Binary.Classes
 
 import Data.Monoid
