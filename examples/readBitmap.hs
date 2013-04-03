@@ -24,8 +24,11 @@ instance Field (Int, Int, Int) where
 		(r, rest'') = fromBinary 1 rest' in
 		((b, g, r), snd $ getBytes 1 rest'')
 	toBinary _ (b, g, r) = concatBinary [
-		toBinary 1 b, toBinary 1 g, toBinary 1 r,
-		makeBinary $ BSL.singleton 0]
+		toBinary 1 b,
+		toBinary 1 g,
+		toBinary 1 r,
+		makeBinary $ BSL.singleton 0
+	 ]
 
 [binary|
 

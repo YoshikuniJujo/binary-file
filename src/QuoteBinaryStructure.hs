@@ -26,6 +26,8 @@ import qualified Data.ByteString.Lazy.Char8 as BSLC
 import ParseBinaryStructure
 import File.Binary.Classes
 
+import Data.Monoid
+
 binary :: QuasiQuoter
 binary = QuasiQuoter {
 	quoteExp = undefined,
@@ -57,7 +59,7 @@ writing :: String -> String -> [BinaryStructureItem] -> DecQ
 writing name argn body = do
 	arg <- newName "_arg"
 	bs <- newName "_bs"
-	let run = appE (varE 'concatBinary) $ listE $ map
+	let run = appE (varE 'mconcat) $ listE $ map
 		(\bsi -> writeField bs arg argn (bytesOf bsi) (valueOf bsi)) body
 	funD (mkName name)
 		[clause [varP arg, varP bs] (normalB run) []]
@@ -80,7 +82,7 @@ fieldValueToStr :: Name -> Name -> String -> Expression -> Bool -> ExpQ -> ExpQ
 fieldValueToStr bs arg argn size False =
 	appE $ appE (varE 'toBinary) (expression bs arg argn size)
 fieldValueToStr bs arg argn size True = \val ->
-	appE (varE 'concatBinary) $ appsE [
+	appE (varE 'mconcat) $ appsE [
 		varE 'map, appE (varE 'toBinary) (expression bs arg argn size), val]
 
 reading :: String -> String -> String -> [BinaryStructureItem] -> DecQ
