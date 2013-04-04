@@ -2,12 +2,11 @@
 2. 読み捨て _ とかかな。
 3. リファクタリング
 4. ByteString を切り離してもいいかもしれない <- ただし lazy ByteString が必要
-5. deriving Show を任意にする
 7. ByteString ではなく Lazy.ByteString を中間として使っているがその正当性を考慮する
-8. expression で if ... then ... else ... や \... -> ... や case ... of ... や
+6. expression で if ... then ... else ... や \... -> ... や case ... of ... や
 	let ... in ... を許すべきかどうか考える
 	必要かどうかが問題だ
-9. 以下の refactoring
+7. 以下の refactoring
 	File.Binary.Quote
 	File.Binary.Instances
 	File.Binary.Instances.BigEndian

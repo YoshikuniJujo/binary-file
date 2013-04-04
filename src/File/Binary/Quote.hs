@@ -3,7 +3,7 @@
 module File.Binary.Quote (Field(..), Binary(..), binary) where
 
 import Language.Haskell.TH (
-	Q, Name, mkName, newName, varP, tupP, integerL, stringL,
+	Q, Name, newName, varP, tupP, integerL, stringL,
 	ExpQ, varE, litE, appE, appsE, infixE, tupE, letE, condE, sigE, listE, recConE,
 	TypeQ, appT, conT,
 	DecsQ, DecQ, Dec, valD, dataD, funD, instanceD, tySynInstD,
@@ -32,71 +32,39 @@ binary = QuasiQuoter {
  }
 
 mkHaskellTree :: BinaryStructure -> DecsQ
-mkHaskellTree bs = do
-		d <- mkData bsn ders body
-		i <- mkInst bsn argn typ body
-		return $ d : [i]
+mkHaskellTree bs = (\d i -> [d, i]) <$>
+	dataD (cxt []) bsn [] [recC bsn $ fields $ variables body] ders <*>
+	mkInst bsn argn typ body
 	where
 	bsn = bsName bs
 	ders = bsDerive bs
 	argn = bsArgName bs
 	typ = bsArgType bs
 	body = bsBody bs
+	fields = map $ varStrictType <$> fst <*> strictType notStrict . snd
 
 mkInst :: Name -> Name -> TypeQ -> [BinaryStructureItem] -> DecQ
 mkInst bsn argn typ body =
 	instanceD (cxt []) (appT (conT ''Field) (conT bsn)) [
 		tySynInstD ''FieldArgument [conT bsn] typ,
-		reading "fromBinary" bsn argn body,
-		writing "toBinary" argn body
+		reading 'fromBinary bsn argn body,
+		writing 'toBinary argn body
 	 ]
 
-writing :: String -> Name -> [BinaryStructureItem] -> DecQ
-writing name argn body = do
-	arg <- newName "_arg"
-	bs <- newName "_bs"
-	let run = appE (varE 'mconcat) $ listE $ map
-		(\bsi -> writeField bs arg argn (bytesOf bsi) (valueOf bsi)) body
-	funD (mkName name)
-		[clause [varP arg, varP bs] (normalB run) []]
-
-writeField :: Name -> Name -> Name -> Expression -> Value -> ExpQ
-writeField bs arg argn size (Constant (Left n)) =
-	appsE [fiend', expression (varE bs) (varE arg) argn size,
-		sigE (litE $ integerL $ fromIntegral n)
-		(conT ''Int)]
-	where
-	fiend' = varE 'toBinary
-writeField _ _ _ _ (Constant (Right s)) =
-	appsE [varE 'fs, litE $ stringL s]
-writeField bs arg argn bytes (Variable v) =
-	fieldValueToStr bs arg argn bytes False $ getField bs v
-
-fs :: Binary a => String -> a
-fs = makeBinary . BSLC.pack
-
-fieldValueToStr :: Name -> Name -> Name -> Expression -> Bool -> ExpQ -> ExpQ
-fieldValueToStr bs arg argn size False =
-	appE $ appE (varE 'toBinary) (expression (varE bs) (varE arg) argn size)
-fieldValueToStr bs arg argn size True = \val ->
-	appE (varE 'mconcat) $ appsE [
-		varE 'map, appE (varE 'toBinary) (expression (varE bs) (varE arg) argn size), val]
-
-reading :: String -> Name -> Name -> [BinaryStructureItem] -> DecQ
+reading :: Name -> Name -> Name -> [BinaryStructureItem] -> DecQ
 reading name bsn argn body = do
 	arg <- newName "_arg"
-	cs <- newName "cs1"
-	ret <- newName "ret"
-	funD (mkName name) [clause [varP arg, varP cs]
-		(normalB $ mkLetRec ret $ mkBody bsn arg argn body cs) []]
+	bin <- newName "bin"
+	funD name [clause [varP arg, varP bin]
+		(normalB $ mkLetRec $ mkBody bsn arg argn body bin) []]
 
-mkLetRec :: Name -> (Name -> ExpQ) -> ExpQ
-mkLetRec n f = do
-	rest <- newName "rest"
-	letE [valD (tupP [varP n, varP rest]) (normalB $ f n) []] $
-		tupE [varE n, varE rest]
+mkLetRec :: (ExpQ -> ExpQ) -> ExpQ
+mkLetRec e = do
+	(ret, rest) <- (,) <$> newName "ret" <*> newName "rest"
+	letE [valD (tupP [varP ret, varP rest]) (normalB $ e $ varE ret) []] $
+		tupE [varE ret, varE rest]
 
-mkBody :: Name -> Name -> Name -> [BinaryStructureItem] -> Name -> Name -> ExpQ
+mkBody :: Name -> Name -> Name -> [BinaryStructureItem] -> Name -> ExpQ -> ExpQ
 mkBody bsn arg argn body cs ret = do
 	namePairs <- for names $ \n -> return . (n ,) =<< newName "tmp"
 	(defs, rest) <- gather cs body $ mkDef namePairs
@@ -130,8 +98,39 @@ mkBody bsn arg argn body cs ret = do
 		return ([def], cs'')
 	    | otherwise = error "bad"
 	    where
-	    n = expression (varE ret) (varE arg) argn $ bytesOf item
-	    arg' = expression (varE ret) (varE arg) argn $ bytesOf item
+	    n = expression ret (varE arg) argn $ bytesOf item
+	    arg' = expression ret (varE arg) argn $ bytesOf item
+
+writing :: Name -> Name -> [BinaryStructureItem] -> DecQ
+writing name argn body = do
+	arg <- newName "_arg"
+	bs <- newName "_bs"
+	let run = appE (varE 'mconcat) $ listE $ map
+		(\bsi -> writeField bs arg argn (bytesOf bsi) (valueOf bsi)) body
+	funD name
+		[clause [varP arg, varP bs] (normalB run) []]
+
+writeField :: Name -> Name -> Name -> Expression -> Value -> ExpQ
+writeField bs arg argn size (Constant (Left n)) =
+	appsE [fiend', expression (varE bs) (varE arg) argn size,
+		sigE (litE $ integerL $ fromIntegral n)
+		(conT ''Int)]
+	where
+	fiend' = varE 'toBinary
+writeField _ _ _ _ (Constant (Right s)) =
+	appsE [varE 'fs, litE $ stringL s]
+writeField bs arg argn bytes (Variable v) =
+	fieldValueToStr bs arg argn bytes False $ getField bs v
+
+fs :: Binary a => String -> a
+fs = makeBinary . BSLC.pack
+
+fieldValueToStr :: Name -> Name -> Name -> Expression -> Bool -> ExpQ -> ExpQ
+fieldValueToStr bs arg argn size False =
+	appE $ appE (varE 'toBinary) (expression (varE bs) (varE arg) argn size)
+fieldValueToStr bs arg argn size True = \val ->
+	appE (varE 'mconcat) $ appsE [
+		varE 'map, appE (varE 'toBinary) (expression (varE bs) (varE arg) argn size), val]
 
 getField :: Name -> Name -> ExpQ
 getField bs v = appE (varE v) (varE bs)
@@ -159,9 +158,3 @@ gather s (x : xs) f = do
 	(ys, s') <- f x s
 	(zs, s'') <- gather s' xs f
 	return (ys ++ zs, s'')
-
-mkData :: Name -> [Name] -> [BinaryStructureItem] -> DecQ
-mkData bsn ders body = dataD (cxt []) bsn [] [recC bsn vsts] ders
-	where
-	vsts = map (varStrictType <$> fst <*> strictType notStrict . snd) $
-		variables body
