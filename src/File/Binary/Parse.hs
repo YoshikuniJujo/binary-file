@@ -8,7 +8,7 @@
 
 module File.Binary.Parse (
 	parse,
-	BinaryStructure, bsName, bsArgName, bsArgType, bsBody,
+	BinaryStructure, bsName, bsDerive, bsArgName, bsArgType, bsBody,
 	BinaryStructureItem, bytesOf, valueOf,
 	Value(..), variables,
 	Expression, expression,
@@ -32,6 +32,7 @@ parse = either (error . show) id . parseString top ""
 
 data BinaryStructure = BinaryStructure {
 	bsName :: Name,
+	bsDerive :: [Name],
 	bsArgName :: Name,
 	bsArgType :: TypeQ,
 	bsBody :: [BinaryStructureItem]
@@ -65,7 +66,13 @@ variables =
 [peggy|
 
 top :: BinaryStructure
-	= emp lname arg dat*		{ BinaryStructure $2 (fst $3) (snd $3) $4 }
+	= emp lname der arg dat*
+				{ BinaryStructure $2 $3 (fst $4) (snd $4) $5 }
+
+der :: [Name]
+	= emp 'deriving' sp ln (sp ',' sp ln)*
+				{ mkName $3 : map (\(_, _, n) -> mkName n) $4 }
+	/ ''			{ [] }
 
 arg :: (Name, TypeQ)
 	= emp var sp '::' sp typ	{ ($2, $5) }

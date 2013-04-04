@@ -47,6 +47,8 @@ description:
     >
     > Bitmap
     >
+    > deriving Show
+    >
     > 2: "BM"
     > 4: file_size
     > 2: 0

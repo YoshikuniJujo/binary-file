@@ -17,7 +17,7 @@ import qualified Data.ByteString.Lazy.Char8 as BSLC (pack, unpack)
 
 import File.Binary.Parse (
 	parse,
-	BinaryStructure, bsName, bsArgName, bsArgType, bsBody,
+	BinaryStructure, bsName, bsDerive, bsArgName, bsArgType, bsBody,
 	BinaryStructureItem, bytesOf, valueOf,
 	Value(..), variables,
 	Expression, expression)
@@ -33,11 +33,12 @@ binary = QuasiQuoter {
 
 mkHaskellTree :: BinaryStructure -> DecsQ
 mkHaskellTree bs = do
-		d <- mkData bsn body
+		d <- mkData bsn ders body
 		i <- mkInst bsn argn typ body
 		return $ d : [i]
 	where
 	bsn = bsName bs
+	ders = bsDerive bs
 	argn = bsArgName bs
 	typ = bsArgType bs
 	body = bsBody bs
@@ -159,8 +160,8 @@ gather s (x : xs) f = do
 	(zs, s'') <- gather s' xs f
 	return (ys ++ zs, s'')
 
-mkData :: Name -> [BinaryStructureItem] -> DecQ
-mkData bsn body = dataD (cxt []) bsn [] [recC bsn vsts] [''Show]
+mkData :: Name -> [Name] -> [BinaryStructureItem] -> DecQ
+mkData bsn ders body = dataD (cxt []) bsn [] [recC bsn vsts] ders
 	where
 	vsts = map (varStrictType <$> fst <*> strictType notStrict . snd) $
 		variables body

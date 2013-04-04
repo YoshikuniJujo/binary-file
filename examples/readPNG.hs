@@ -64,7 +64,7 @@ test = fst . fromBinary () <$> readBinaryFile "tmp/sample.png"
 
 [binary|
 
-PNG
+PNG deriving Show
 
 1: 0x89
 3: "PNG"
@@ -77,7 +77,7 @@ PNG
 
 [binary|
 
-Chank
+Chank deriving Show
 
 4: chankSize
 ((), Just 4){String}: chankName
@@ -155,7 +155,7 @@ instance Field ChankBody where
 
 [binary|
 
-IHDR
+IHDR deriving Show
 
 4: width
 4: height
@@ -169,7 +169,7 @@ IHDR
 
 [binary|
 
-GAMA
+GAMA deriving Show
 
 4: gamma
 
@@ -177,7 +177,7 @@ GAMA
 
 [binary|
 
-SRGB
+SRGB deriving Show
 
 1: srgb
 
@@ -187,6 +187,8 @@ SRGB
 
 CHRM
 
+deriving Show
+
 arg :: Int
 
 (4, Just (arg `div` 4)){[Int]}: chrms
@@ -195,8 +197,7 @@ arg :: Int
 
 [binary|
 
-PLTE
-
+PLTE deriving Show
 arg :: Int
 
 ((), Just (arg `div` 3)){[(Int, Int, Int)]}: colors
@@ -215,7 +216,7 @@ instance Field (Int, Int, Int) where
 
 [binary|
 
-BKGD
+BKGD deriving Show
 
 1: bkgd
 
@@ -223,7 +224,7 @@ BKGD
 
 [binary|
 
-IDAT
+IDAT deriving Show
 
 arg :: Int
 
@@ -234,10 +235,7 @@ arg{BSL.ByteString}: idat
 
 [binary|
 
-TEXT
-{-
-test {- hoge -}
--}
+TEXT deriving Show
 
 arg :: Int
 
@@ -245,4 +243,4 @@ arg :: Int
 
 |]
 
-[binary|IEND|]
+[binary|IEND deriving Show|]

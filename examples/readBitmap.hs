@@ -35,6 +35,8 @@ instance Field (Int, Int, Int) where
 
 Bitmap
 
+deriving Show
+
 2: "BM"
 4: fileSize
 2: 0
