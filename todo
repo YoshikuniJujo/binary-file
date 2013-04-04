@@ -1,13 +1,9 @@
 1. bits を指定できるようにするかどうか考える
-2. 空行とコメント、コメントとコメントの隣接を許す
-3. 読み捨て _ とかかな。
-4. リファクタリング
-5. ByteString を切り離してもいいかもしれない <- ただし lazy ByteString が必要
-6. deriving Show を任意にする
-7. class Binary をきれいにする
-8. ByteString ではなく Lazy.ByteString を中間として使っているがその正当性を考慮する
-9. class Binary で concatBinary ではなく、appendBinary を定義し、
-	concatBinary はそこから導くべきだろう
-10. Peggy で some = some some としたときに右結合になるのか左結合になるのか調べる
-11. また、上記の構造を避けることが可能か考える
-	module Parse の typ と exp のところを見直すこと
+2. 読み捨て _ とかかな。
+3. リファクタリング
+4. ByteString を切り離してもいいかもしれない <- ただし lazy ByteString が必要
+5. deriving Show を任意にする
+7. ByteString ではなく Lazy.ByteString を中間として使っているがその正当性を考慮する
+8. expression で if ... then ... else ... や \... -> ... や case ... of ... や
+	let ... in ... を許すべきかどうか考える
+	必要かどうかが問題だ

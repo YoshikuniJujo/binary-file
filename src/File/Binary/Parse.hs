@@ -1,9 +1,10 @@
 {-# LANGUAGE TemplateHaskell, QuasiQuotes, FlexibleContexts, PackageImports #-}
 
 {-# OPTIONS_GHC
-	-fno-warn-unused-do-bind
+	-fno-warn-name-shadowing
+	-fno-warn-unused-binds
 	-fno-warn-unused-matches
-	-fno-warn-name-shadowing #-}
+	-fno-warn-unused-do-bind #-}
 
 module File.Binary.Parse (
 	parse,
@@ -20,7 +21,7 @@ import Numeric (readHex)
 
 import Text.Peggy (peggy, parseString, space, defaultDelimiter)
 import Language.Haskell.TH (
-	ExpQ, litE, varE, appE, conE, tupE, integerL, infixApp,
+	ExpQ, litE, varE, conE, appE, tupE, integerL, uInfixE, parensE,
 	TypeQ, appT, conT, listT, tupleT, Name, mkName)
 
 --------------------------------------------------------------------------------
@@ -57,18 +58,16 @@ variables =
 [peggy|
 
 top :: BinaryStructure
-	= empty lname arg dat*		{ BinaryStructure $2 (fst $3) (snd $3) $4 }
+	= emp lname arg dat*		{ BinaryStructure $2 (fst $3) (snd $3) $4 }
 
 arg :: (Name, TypeQ)
-	= empty var spaces '::' spaces typ
-					{ ($2, $5) }
+	= emp var sp '::' sp typ	{ ($2, $5) }
 	/ ''				{ (mkName "_", conT $ mkName "()") }
 
 dat :: BinaryStructureItem
-	= empty exp spaces typeSpec spaces ':' spaces val
-					{ BinaryStructureItem $2 $4 $7 }
+	= emp exp sp typS sp ':' sp val	{ BinaryStructureItem $2 $4 $7 }
 
-typeSpec :: TypeQ
+typS :: TypeQ
 	= '{' typ '}'			{ $1 }
 	/ ''				{ conT $ mkName "Int" }
 
@@ -78,10 +77,16 @@ val :: Value
 	/ string			{ Constant $ Right $1 }
 
 exp :: Expression
-	= exp spaces exp		{ appE <$> $1 <*> $3 }
-	/ exp spaces op spaces exp	{ flip infixApp (varE $3) <$> $1 <*> $5 }
-	/ '(' tupExp ')'
-	/ '(' exp ')'
+	= exp sp op sp expOp1		{ uInfixE <$> $1 <*> $3 <*> $5 }
+	/ expOp1
+
+expOp1 :: Expression
+	= expOp1 sp exp1		{ appE <$> $1 <*> $3 }
+	/ exp1
+
+exp1 :: Expression
+	= '(' tupExp ')'
+	/ '(' exp ')'			{ parensE <$> $1 }
 	/ '()'				{ return $ conE $ mkName "()" }
 	/ num				{ return $ litE $ integerL $1 }
 	/ lname				{ return $ conE $1 }
@@ -89,27 +94,30 @@ exp :: Expression
 						if $1 == argn
 							then arg
 							else appE (varE $1) ret }
-op :: Name
-	= [!\\#$%&*+./<=>?@^|~-:]+	{ mkName $1 }
-	/ '`' var '`'			{ $1 }
-tupExp :: Expression = exp (spaces ',' spaces exp)+
+op :: Expression
+	= [!\\#$%&*+./<=>?@^|~-:]+	{ return $ varE $ mkName $1 }
+	/ '`' var '`'			{ return $ varE $1 }
+tupExp :: Expression = exp (sp ',' sp exp)+
 	{ (.) tupE . (:) <$> $1 <*> mapM (\(_, _, e) -> e) $2 }
 
 typ :: TypeQ
-	= typ (spaces typ)+		{ foldl appT $1 $ map snd $2 }
-	/ '(' tupType ')'		{ foldl appT (tupleT $ length $1) $1 }
+	= typ typ1			{ appT $1 $2 }
+	/ typ1
+
+typ1 :: TypeQ
+	= '(' tupType ')'		{ foldl appT (tupleT $ length $1) $1 }
 	/ '(' typ ')'
 	/ '()'				{ conT $ mkName "()" }
 	/ '[' typ ']'			{ appT listT $1 }
 	/ lname				{ conT $1 }
 tupType :: [TypeQ]
-	= typ spaces (',' spaces typ)+	{ $1 : map snd $3 }
+	= typ sp (',' sp typ)+	{ $1 : map snd $3 }
 
 lname :: Name
-	= [A-Z][.a-zA-Z0-9_]*		{ mkName $ $1 : $2 }
+	= (ln '.')* ln			{ mkName $ concatMap (++ ".") $1 ++ $2 }
 
 var :: Name
-	= [a-z][_a-zA-Z0-9]*		{ mkName $ $1 : $2 }
+	= (ln '.')* sn			{ mkName $ concatMap (++ ".") $1 ++ $2 }
 
 num :: Integer
 	= '0x' [0-9a-fA-F]+		{ fst $ head $ readHex $1 }
@@ -119,13 +127,16 @@ num :: Integer
 string :: String = '\"' char* '\"'
 char :: Char = [^\\\"] / '\\' esc
 esc :: Char
-	= 'n'				{ '\n' }
-	/ 'r'				{ '\r' }
-	/ '\\'				{ '\\' }
-	/ 'SUB'				{ '\SUB' }
+	= 'n'						{ '\n' }
+	/ 'r'						{ '\r' }
+	/ '\\'						{ '\\' }
+	/ 'SUB'						{ '\SUB' }
 
-spaces :: () = (comm / [ \t])*				{ () }
-empty :: () = (comm / lcomm / [ \n])*			{ () }
+ln :: String = [A-Z][_a-zA-Z0-9]*			{ $1 : $2 }
+sn :: String = [a-z][_a-zA-Z0-9]*			{ $1 : $2 }
+
+sp :: () = (comm / [ \t])*				{ () }
+emp :: () = (comm / lcomm / [ \n])*			{ () }
 lcomm :: Char = '--' [^\n]* [\n]			{ ' ' }
 comm :: Char = '{-' (!'{-' !'-}' . / comm)* '-}'	{ ' ' }
 
