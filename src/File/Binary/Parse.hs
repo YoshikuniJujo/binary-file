@@ -9,7 +9,7 @@
 module File.Binary.Parse (
 	parse,
 	BinaryStructure, bsName, bsDerive, bsArgName, bsArgType, bsBody,
-	BinaryStructureItem, bytesOf, valueOf,
+	BSItem, bytesOf, valueOf,
 	Value(..), variables,
 	Expression, expression,
 ) where
@@ -35,10 +35,10 @@ data BinaryStructure = BinaryStructure {
 	bsDerive :: [Name],
 	bsArgName :: Name,
 	bsArgType :: TypeQ,
-	bsBody :: [BinaryStructureItem]
+	bsBody :: [BSItem]
  }
 
-data BinaryStructureItem = BinaryStructureItem {
+data BSItem = BSItem {
 	bytesOf :: Expression,
 	typeOf :: TypeQ,
 	valueOf :: Value
@@ -53,7 +53,7 @@ data Value
 	= Constant { constant :: Either Integer String }
 	| Variable { variable :: Name }
 
-variables :: [BinaryStructureItem] -> [(Name, TypeQ)]
+variables :: [BSItem] -> [(Name, TypeQ)]
 variables = map (variable . valueOf &&& typeOf) .
 	filter (\bsi -> case valueOf bsi of Variable _ -> True; _ -> False)
 
@@ -78,8 +78,8 @@ arg :: (Name, TypeQ)
 	= emp var sp '::' sp typ	{ ($2, $5) }
 	/ ''				{ (mkName "_", conT $ mkName "()") }
 
-dat :: BinaryStructureItem
-	= emp exp sp typS sp ':' sp val	{ BinaryStructureItem $2 $4 $7 }
+dat :: BSItem
+	= emp exp sp typS sp ':' sp val	{ BSItem $2 $4 $7 }
 
 typS :: TypeQ
 	= '{' typ '}'			{ $1 }

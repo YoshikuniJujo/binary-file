@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, PatternGuards, TupleSections #-}
+{-# LANGUAGE TemplateHaskell, PatternGuards, TupleSections, PackageImports #-}
 
 module File.Binary.Quote (Field(..), Binary(..), binary) where
 
@@ -14,11 +14,12 @@ import Data.Monoid (mconcat)
 import Data.Maybe (fromJust)
 import Control.Applicative ((<$>), (<*>))
 import qualified Data.ByteString.Lazy.Char8 as BSLC (pack, unpack)
+import "monads-tf" Control.Monad.State
 
 import File.Binary.Parse (
 	parse,
 	BinaryStructure, bsName, bsDerive, bsArgName, bsArgType, bsBody,
-	BinaryStructureItem, bytesOf, valueOf,
+	BSItem, bytesOf, valueOf,
 	Value(..), variables,
 	Expression, expression)
 import File.Binary.Classes (Field(..), Binary(..))
@@ -43,7 +44,7 @@ mkHaskellTree bs = (\d i -> [d, i]) <$>
 	body = bsBody bs
 	fields = map $ varStrictType <$> fst <*> strictType notStrict . snd
 
-mkInst :: Name -> Name -> TypeQ -> [BinaryStructureItem] -> DecQ
+mkInst :: Name -> Name -> TypeQ -> [BSItem] -> DecQ
 mkInst bsn argn typ body =
 	instanceD (cxt []) (appT (conT ''Field) (conT bsn)) [
 		tySynInstD ''FieldArgument [conT bsn] typ,
@@ -51,12 +52,12 @@ mkInst bsn argn typ body =
 		writing 'toBinary argn body
 	 ]
 
-reading :: Name -> Name -> Name -> [BinaryStructureItem] -> DecQ
+reading :: Name -> Name -> Name -> [BSItem] -> DecQ
 reading name bsn argn body = do
 	arg <- newName "_arg"
 	bin <- newName "bin"
 	funD name [clause [varP arg, varP bin]
-		(normalB $ mkLetRec $ mkBody bsn arg argn body bin) []]
+		(normalB $ mkLetRec $ mkBody bsn (varE arg) argn body bin) []]
 
 mkLetRec :: (ExpQ -> ExpQ) -> ExpQ
 mkLetRec e = do
@@ -64,44 +65,49 @@ mkLetRec e = do
 	letE [valD (tupP [varP ret, varP rest]) (normalB $ e $ varE ret) []] $
 		tupE [varE ret, varE rest]
 
-mkBody :: Name -> Name -> Name -> [BinaryStructureItem] -> Name -> ExpQ -> ExpQ
-mkBody bsn arg argn body cs ret = do
+mkBody :: Name -> ExpQ -> Name -> [BSItem] -> Name -> ExpQ -> ExpQ
+mkBody bsn arg argn body bin ret = do
 	namePairs <- for names $ \n -> return . (n ,) =<< newName "tmp"
-	(defs, rest) <- gather cs body $ mkDef namePairs
+	(defs, rest) <- mapM (mkDef getN namePairs) body `runStateT` bin
 	letE (map return defs) $ tupE
-		[recConE bsn (map toPair2 namePairs), varE rest]
+		[recConE bsn (map toPair namePairs), varE rest]
 	where
 	names = map fst $ variables body
-	toPair2 (n, nn) = (n, ) <$> varE nn
-	mkDef :: [(Name, Name)] -> BinaryStructureItem -> Name -> Q ([Dec], Name)
-	mkDef np item cs'
-	    | Constant (Left val) <- valueOf item = do
-		cs'' <- newName "cs"
-		let	t = dropE' n $ varE cs'
-			p = val `equal` appE (varE 'fst)
-				(appE (appE (varE 'fromBinary) arg') $
-					takeE' n $ varE cs')
-			e = [e| error "bad value" |]
-		d <- valD (varP cs'') (normalB $ condE p t e) []
-		return ([d], cs'')
-	    | Constant (Right val) <- valueOf item = do
-		cs'' <- newName "cs"
-		let t = dropE' n $ varE cs'
-		let p = val `equal'` takeE' n (varE cs')
-		let e = [e| error "bad value" |]
-		d <- valD (varP cs'') (normalB $ condE p t e) []
-		return ([d], cs'')
-	    | Variable var <- valueOf item = do
-		cs'' <- newName "cs"
-		def <- valD (tupP [varP $ fromJust $ lookup var np, varP cs''])
-			(normalB $ appE (appE (varE 'fromBinary) arg') $ varE cs') []
-		return ([def], cs'')
-	    | otherwise = error "bad"
-	    where
-	    n = expression ret (varE arg) argn $ bytesOf item
-	    arg' = expression ret (varE arg) argn $ bytesOf item
+	toPair (n, nn) = (n, ) <$> varE nn
+	getN = expression ret arg argn . bytesOf
 
-writing :: Name -> Name -> [BinaryStructureItem] -> DecQ
+mkDef :: (BSItem -> ExpQ) -> [(Name, Name)] -> BSItem -> StateT Name Q Dec
+mkDef getN np item
+    | Constant (Left val) <- valueOf item = do
+	cs' <- get
+	cs'' <- lift $ newName "cs"
+	let	t = dropE' (getN item) $ varE cs'
+		p = val `equal` appE (varE 'fst)
+			(appE (appE (varE 'fromBinary) $ getN item) $
+				takeE' (getN item) $ varE cs')
+		e = [e| error "bad value" |]
+	d <- lift $ valD (varP cs'') (normalB $ condE p t e) []
+	put cs''
+	return d
+    | Constant (Right val) <- valueOf item = do
+	cs' <- get
+	cs'' <- lift $ newName "cs"
+	let t = dropE' (getN item) $ varE cs'
+	let p = val `equal'` takeE' (getN item) (varE cs')
+	let e = [e| error "bad value" |]
+	d <- lift $ valD (varP cs'') (normalB $ condE p t e) []
+	put cs''
+	return d
+    | Variable var <- valueOf item = do
+	cs' <- get
+	cs'' <- lift $ newName "cs"
+	def <- lift $ valD (tupP [varP $ fromJust $ lookup var np, varP cs''])
+		(normalB $ appE (appE (varE 'fromBinary) $ getN item) $ varE cs') []
+	put cs''
+	return def
+    | otherwise = error "bad"
+
+writing :: Name -> Name -> [BSItem] -> DecQ
 writing name argn body = do
 	arg <- newName "_arg"
 	bs <- newName "_bs"
@@ -151,10 +157,3 @@ dropE' n xs = appsE [varE 'dp, n, xs]
 
 dp :: Binary a => Int -> a -> a
 dp n = snd . getBytes n
-
-gather :: Monad m => s -> [a] -> (a -> s -> m ([b], s)) -> m ([b], s)
-gather s [] _ = return ([], s)
-gather s (x : xs) f = do
-	(ys, s') <- f x s
-	(zs, s'') <- gather s' xs f
-	return (ys ++ zs, s'')
