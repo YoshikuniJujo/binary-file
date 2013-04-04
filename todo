@@ -13,3 +13,6 @@
 	File.Binary.Instances.LittleEndian
 	examples/readPNG.hs
 	examples/readBitmap.hs
+8. field の値が正しくなかった場合に error を出して終了する仕様を直す
+	あるいは error のままにするほうが良いかもしれない
+	error のままであったとしても exception を選ぶべきか考える
