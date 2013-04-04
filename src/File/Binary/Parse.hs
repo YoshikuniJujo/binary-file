@@ -9,13 +9,14 @@
 module File.Binary.Parse (
 	parse,
 	BinaryStructure, bsName, bsArgName, bsArgType, bsBody,
-	BinaryStructureItem, bytesOf, typeOf, valueOf,
+	BinaryStructureItem, bytesOf, valueOf,
 	Value(..), variables,
 	Expression, expression,
 ) where
 
 import Prelude hiding (exp)
 import Control.Applicative ((<$>), (<*>))
+import Control.Arrow ((&&&))
 import "monads-tf" Control.Monad.Reader (Reader, runReader, ask)
 import Numeric (readHex)
 
@@ -51,9 +52,15 @@ data Value
 	= Constant { constant :: Either Integer String }
 	| Variable { variable :: Name }
 
+variables :: [BinaryStructureItem] -> [(Name, TypeQ)]
+variables = map (variable . valueOf &&& typeOf) .
+	filter (\bsi -> case valueOf bsi of Variable _ -> True; _ -> False)
+
+{-
 variables :: [Value] -> [Name]
 variables =
 	map variable . filter (\v -> case v of Variable _ -> True; _ -> False)
+-}
 
 [peggy|
 

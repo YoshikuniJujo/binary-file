@@ -1,31 +1,27 @@
-{-# LANGUAGE
-	TemplateHaskell,
-	TupleSections,
-	PatternGuards,
-	TypeSynonymInstances,
-	FlexibleInstances #-}
+{-# LANGUAGE TemplateHaskell, PatternGuards, TupleSections #-}
 
-module File.Binary.Quote (
-	binary,
-	Field(..),
-	Binary(..),
---	fii, -- fiiBE,
---	tii, -- tiiBE,
-	times
-) where
+module File.Binary.Quote (Field(..), Binary(..), binary) where
 
-import Prelude hiding (sequence)
+import Language.Haskell.TH (
+	Q, Name, mkName, newName, varP, tupP, integerL, stringL,
+	ExpQ, varE, litE, appE, appsE, infixE, tupE, letE, condE, sigE, listE, recConE,
+	TypeQ, appT, conT,
+	DecsQ, DecQ, Dec, valD, dataD, funD, instanceD, tySynInstD,
+	normalB, cxt, clause, recC, varStrictType, strictType, notStrict)
+import Language.Haskell.TH.Quote (QuasiQuoter(..))
+import Data.Traversable (for)
+import Data.Monoid (mconcat)
+import Data.Maybe (fromJust)
+import Control.Applicative ((<$>), (<*>))
+import qualified Data.ByteString.Lazy.Char8 as BSLC (pack, unpack)
 
-import Language.Haskell.TH hiding (Type)
-import Language.Haskell.TH.Quote
-import Data.Traversable hiding (mapM)
-import Data.Maybe
-import qualified Data.ByteString.Lazy.Char8 as BSLC
-
-import File.Binary.Parse
-import File.Binary.Classes
-
-import Data.Monoid
+import File.Binary.Parse (
+	parse,
+	BinaryStructure, bsName, bsArgName, bsArgType, bsBody,
+	BinaryStructureItem, bytesOf, valueOf,
+	Value(..), variables,
+	Expression, expression)
+import File.Binary.Classes (Field(..), Binary(..))
 
 binary :: QuasiQuoter
 binary = QuasiQuoter {
@@ -39,7 +35,7 @@ mkHaskellTree :: BinaryStructure -> DecsQ
 mkHaskellTree bs = do
 		d <- mkData bsn body
 		i <- mkInst bsn argn typ body
-		return $ d ++ [i]
+		return $ d : [i]
 	where
 	bsn = bsName bs
 	argn = bsArgName bs
@@ -106,8 +102,8 @@ mkBody bsn arg argn body cs ret = do
 	letE (map return defs) $ tupE
 		[recConE bsn (map toPair2 namePairs), varE rest]
 	where
-	names = variables $ map valueOf body
-	toPair2 (n, nn) = return (n, VarE nn)
+	names = map fst $ variables body
+	toPair2 (n, nn) = (n, ) <$> varE nn
 	mkDef :: [(Name, Name)] -> BinaryStructureItem -> Name -> Q ([Dec], Name)
 	mkDef np item cs'
 	    | Constant (Left val) <- valueOf item = do
@@ -163,28 +159,8 @@ gather s (x : xs) f = do
 	(zs, s'') <- gather s' xs f
 	return (ys ++ zs, s'')
 
-mkData :: Name -> [BinaryStructureItem] -> DecsQ
-mkData bsn body = do
-	d <- dataD (cxt []) name [] [con] [''Show]
-	return [d]
+mkData :: Name -> [BinaryStructureItem] -> DecQ
+mkData bsn body = dataD (cxt []) bsn [] [recC bsn vsts] [''Show]
 	where
-	name = bsn
-	con = recC bsn vsts
-
-	vsts = flip map (filter isRight body) $ \item ->
-		varStrictType (variable $ valueOf item) $
-			strictType notStrict $ mkType False $ typeOf item
-	isRight item
-		| Variable _ <- valueOf item = True
-		| otherwise = False
-
-mkType :: Bool -> TypeQ -> TypeQ
-mkType True t = appT listT $ mkType False t
-mkType False typ = typ
-
-times :: Int -> (s -> (ret, s)) -> s -> ([ret], s)
-times 0 _ s = ([], s)
-times n f s = let
-	(ret, rest) = f s
-	(rets, rest') = times (n - 1) f rest in
-	(ret : rets, rest')
+	vsts = map (varStrictType <$> fst <*> strictType notStrict . snd) $
+		variables body

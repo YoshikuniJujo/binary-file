@@ -7,3 +7,10 @@
 8. expression で if ... then ... else ... や \... -> ... や case ... of ... や
 	let ... in ... を許すべきかどうか考える
 	必要かどうかが問題だ
+9. 以下の refactoring
+	File.Binary.Quote
+	File.Binary.Instances
+	File.Binary.Instances.BigEndian
+	File.Binary.Instances.LittleEndian
+	examples/readPNG.hs
+	examples/readBitmap.hs
