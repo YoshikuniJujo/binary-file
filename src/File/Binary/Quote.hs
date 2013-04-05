@@ -3,16 +3,16 @@
 module File.Binary.Quote (Field(..), Binary(..), binary) where
 
 import Language.Haskell.TH (
-	Q, DecsQ, ClauseQ, ExpQ, Dec, Name,
+	Q, DecsQ, ClauseQ, ExpQ, Dec, Exp(..), Name, FieldExp,
 	dataD, recC, varStrictType, strictType, notStrict,
 	instanceD, funD, clause, normalB, valD, tySynInstD, cxt,
 	conT, appT, sigE, varP, tupP, letE, condE, recConE, tupE, listE,
 	appE, appsE, infixApp, varE, litE, newName, integerL, stringL)
 import Language.Haskell.TH.Quote (QuasiQuoter(..))
-import Data.Maybe (fromJust)
 import Data.Monoid (mconcat)
-import Data.Traversable (for)
+import Control.Monad (zipWithM)
 import "monads-tf" Control.Monad.State (StateT, runStateT, get, put, lift)
+import "monads-tf" Control.Monad.Writer (WriterT, runWriterT, tell)
 import Control.Applicative ((<$>), (<*>))
 import qualified Data.ByteString.Lazy.Char8 as BSLC (ByteString, pack)
 
@@ -56,36 +56,39 @@ letRec e = do
 
 binToDat :: Name -> [BSItem] -> ExpQ -> (ExpQ -> BSItem -> ExpQ) -> ExpQ -> ExpQ
 binToDat con items bin size ret = do
-	rts <- for (variables items) $ \(r, _) -> (r ,) <$> newName "tmp"
-	(binds, rest) <- for items (binToField rts $ size ret) `runStateT` bin
-	letE (return <$> binds) $ tupE $ (: [rest]) $ recConE con $ (<$> rts) $
-		\(r, tmp) -> (r ,) <$> varE tmp
+	((binds, rest), rts) <- runWriterT $ (`runStateT` bin) $
+		(zipWithM binToField <$> map (size ret) <*> map valueOf) items
+	letE (return <$> binds) $ tupE $ (: [rest]) $ recConE con $ (return <$> rts)
 
-binToField :: [(Name, Name)] -> (BSItem -> ExpQ) -> BSItem -> StateT ExpQ Q Dec
-binToField rt size item
-	| Constant val <- valueOf item = do
-		bin <- get
-		rv <- lift $ newName "rv"
-		rest <- lift $ newName "rst"
-		bin' <- lift $ newName "bin'"
-		put $ varE bin'
-		let v = either
-			((`sigE` conT ''Integer) . litE . integerL)
-			((`sigE` conT ''BSLC.ByteString) .
-				appE (varE 'BSLC.pack) . litE . stringL) val
-		lift $ flip (valD $ varP bin') [] $ normalB $
-			letE [flip (valD $ tupP [varP rv, varP rest]) [] $ normalB $
-				appsE [varE 'fromBinary, size item, bin]] $
-			condE (infixApp (varE rv) (varE '(==)) v) (varE rest)
-				[e| error "bad value" |]
-	| Variable var <- valueOf item = do
-		bin <- get
-		bin' <- lift $ newName "bin'"
-		put $ varE bin'
-		lift $ valD (tupP [varP $ fromJust $ lookup var rt, varP bin'])
-			(normalB $ appE (appE (varE 'fromBinary) $ size item) bin)
-			[]
-	| otherwise = error "never occur"
+type FieldMonad = StateT ExpQ (WriterT [FieldExp] Q)
+
+liftQ :: Q a -> FieldMonad a
+liftQ = lift . lift
+
+liftW :: WriterT [FieldExp] Q a -> FieldMonad a
+liftW = lift
+
+binToField :: ExpQ -> Value -> FieldMonad Dec
+binToField size (Constant val) = do
+	bin <- get
+	[rv, rest, bin'] <- liftQ $ mapM newName ["rv", "rst", "bin'"]
+	put $ varE bin'
+	let lit = either
+		((`sigE` conT ''Integer) . litE . integerL)
+		((`sigE` conT ''BSLC.ByteString) .
+			appE (varE 'BSLC.pack) . litE . stringL) val
+	liftQ $ flip (valD $ varP bin') [] $ normalB $
+		letE [flip (valD $ tupP [varP rv, varP rest]) [] $ normalB $
+			appsE [varE 'fromBinary, size, bin]] $
+		condE (infixApp (varE rv) (varE '(==)) lit) (varE rest)
+			[e| error "bad value" |]
+binToField size (Variable var) = do
+	bin <- get
+	[bin', tmp] <- liftQ $ mapM newName ["bin'", "tmp"]
+	put $ varE bin'
+	liftW $ tell [(var, VarE tmp)]
+	liftQ $ valD (tupP [varP tmp, varP bin'])
+		(normalB $ appsE [varE 'fromBinary, size, bin]) []
 
 writing :: Name -> [BSItem] -> ClauseQ
 writing argn items = do
