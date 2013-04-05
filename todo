@@ -17,3 +17,5 @@
 	あるいは error のままにするほうが良いかもしれない
 	error のままであったとしても exception を選ぶべきか考える
 9. 外の値をたとえば Main.var のように入手できるようにする
+10. そろそろ hackage に up する
+11. homepage の作成

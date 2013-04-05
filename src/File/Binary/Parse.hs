@@ -45,6 +45,12 @@ variables :: [BSItem] -> [(Name, TypeQ)]
 variables = catMaybes . map (\bsi -> case valueOf bsi of
 		Variable var -> Just (var, typeOf bsi); _ -> Nothing)
 
+varToExp :: String -> (ExpQ, ExpQ, Name) -> ExpQ
+varToExp var (ret, arg, argn)
+	| mkName var == argn = arg
+	| '.' `elem` var = varE $ mkName var
+	| otherwise = appE (varE $ mkName var) ret
+
 [peggy|
 
 top :: BinaryStructure
@@ -57,7 +63,7 @@ der :: [Name]
 	/ ''			{ [] }
 
 arg :: (Name, TypeQ)
-	= emp var sp '::' sp typ	{ ($2, $5) }
+	= emp var sp '::' sp typ	{ (mkName $2, $5) }
 	/ ''				{ (mkName "_", conT $ mkName "()") }
 
 dat :: BSItem
@@ -68,7 +74,7 @@ typS :: TypeQ
 	/ ''				{ conT $ mkName "Int" }
 
 val :: Value
-	= var				{ Variable $1 }
+	= var				{ Variable $ mkName $1 }
 	/ num				{ Constant $ Left $1 }
 	/ string			{ Constant $ Right $1 }
 
@@ -86,13 +92,11 @@ ex1 :: Expression
 	/ '()'				{ return $ conE $ mkName "()" }
 	/ num				{ return $ litE $ integerL $1 }
 	/ lname				{ return $ conE $1 }
-	/ var				{ flip fmap ask $ \(ret, arg, argn) ->
-						if $1 == argn
-							then arg
-							else appE (varE $1) ret }
+	/ var				{ flip fmap ask $ varToExp $1 }
+
 op :: Expression
 	= [!\\#$%&*+./<=>?@^|~-:]+	{ return $ varE $ mkName $1 }
-	/ '`' var '`'			{ return $ varE $1 }
+	/ '`' var '`'			{ return $ varE $ mkName $1 }
 tupExp :: Expression = ex (sp ',' sp ex)+
 	{ (.) tupE . (:) <$> $1 <*> mapM (\(_, _, e) -> e) $2 }
 
@@ -112,8 +116,8 @@ tupType :: [TypeQ]
 lname :: Name
 	= (ln '.')* ln			{ mkName $ concatMap (++ ".") $1 ++ $2 }
 
-var :: Name
-	= (ln '.')* sn			{ mkName $ concatMap (++ ".") $1 ++ $2 }
+var :: String
+	= (ln '.')* sn			{ concatMap (++ ".") $1 ++ $2 }
 
 num :: Integer
 	= '0x' [0-9a-fA-F]+		{ fst $ head $ readHex $1 }

@@ -72,7 +72,11 @@ description:
     > |]
     .
 
-extra-source-files:	examples/readPNG.hs, examples/readBitmap.hs
+extra-source-files:
+    examples/readPNG.hs,
+    examples/readBitmap.hs,
+    examples/readHex.hs,
+    examples/tiny.hs
 
 source-repository	head
     type:	git
