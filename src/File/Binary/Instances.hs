@@ -15,6 +15,11 @@ import qualified Data.ByteString.Lazy.Char8 as BSLC (pack, unpack)
 import Control.Arrow (first, (&&&))
 import Data.Monoid
 
+instance Field BSL.ByteString where
+	type FieldArgument BSL.ByteString = Int
+	fromBinary n str = getBytes n str
+	toBinary _ = makeBinary
+
 instance Field BS.ByteString where
 	type FieldArgument BS.ByteString = Int
 	fromBinary n str =

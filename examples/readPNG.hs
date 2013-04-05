@@ -93,13 +93,6 @@ instance Field Word32 where
 		where
 		(t, d) = getBytes n s
 
-instance Field BSL.ByteString where
-	type FieldArgument BSL.ByteString = Int
-	toBinary _ = makeBinary -- . BS.concat . BSL.toChunks
-	fromBinary n s = (t, d) -- (BSL.fromChunks [t], d)
-		where
-		(t, d) = getBytes n s
-
 toIntgr :: BSL.ByteString -> Integer
 toIntgr = mkNum . map fromIntegral . BSL.unpack
 

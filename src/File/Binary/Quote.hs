@@ -4,16 +4,16 @@ module File.Binary.Quote (Field(..), Binary(..), binary) where
 
 import Language.Haskell.TH (
 	Q, Name, newName, varP, tupP, integerL, stringL,
-	ExpQ, varE, litE, appE, appsE, infixE, tupE, letE, condE, sigE, listE, recConE,
+	ExpQ, varE, litE, appE, appsE, tupE, letE, condE, sigE, listE, recConE,
 	TypeQ, appT, conT, infixApp,
-	DecsQ, DecQ, Dec, valD, dataD, funD, instanceD, tySynInstD,
+	DecsQ, DecQ, Dec, valD, dataD, funD, instanceD, tySynInstD, ClauseQ,
 	normalB, cxt, clause, recC, varStrictType, strictType, notStrict)
 import Language.Haskell.TH.Quote (QuasiQuoter(..))
 import Data.Traversable (for)
 import Data.Monoid (mconcat)
 import Data.Maybe (fromJust)
 import Control.Applicative ((<$>), (<*>))
-import qualified Data.ByteString.Lazy.Char8 as BSLC (pack, unpack)
+import qualified Data.ByteString.Lazy.Char8 as BSLC (ByteString, pack)
 import "monads-tf" Control.Monad.State
 
 import File.Binary.Parse (
@@ -21,7 +21,7 @@ import File.Binary.Parse (
 	BinaryStructure, bsName, bsDerive, bsArgName, bsArgType, bsBody,
 	BSItem, bytesOf, valueOf,
 	Value(..), variables,
-	Expression, expression)
+	expression)
 import File.Binary.Classes (Field(..), Binary(..))
 
 binary :: QuasiQuoter
@@ -48,16 +48,16 @@ mkInst :: Name -> Name -> TypeQ -> [BSItem] -> DecQ
 mkInst bsn argn typ body =
 	instanceD (cxt []) (appT (conT ''Field) (conT bsn)) [
 		tySynInstD ''FieldArgument [conT bsn] typ,
-		reading 'fromBinary bsn argn body,
-		writing 'toBinary argn body
+		funD 'fromBinary $ (: []) $ reading bsn argn body,
+		funD 'toBinary $ (: []) $ writing argn body
 	 ]
 
-reading :: Name -> Name -> Name -> [BSItem] -> DecQ
-reading name bsn argn body = do
+reading :: Name -> Name -> [BSItem] -> ClauseQ
+reading bsn argn body = do
 	arg <- newName "_arg"
 	bin <- newName "bin"
-	funD name [clause [varP arg, varP bin]
-		(normalB $ mkLetRec $ mkBody bsn (varE arg) argn body (varE bin)) []]
+	flip (clause [varP arg, varP bin]) [] $
+		normalB $ mkLetRec $ mkBody bsn (varE arg) argn body (varE bin)
 
 mkLetRec :: (ExpQ -> ExpQ) -> ExpQ
 mkLetRec e = do
@@ -75,80 +75,45 @@ mkBody bsn arg argn body bin ret = do
 
 mkDef :: [(Name, Name)] -> (BSItem -> ExpQ) -> BSItem -> StateT ExpQ Q Dec
 mkDef np getn item
-	| Constant (Left val) <- valueOf item = do
+	| Constant val <- valueOf item = do
 		bin <- get
 		fv <- lift $ newName "fv"
 		ret <- lift $ newName "rt"
 		bin' <- lift $ newName "bin'"
 		put $ varE bin'
+		let (lit, sig) = either
+			((, conT ''Integer) . litE . integerL)
+			((, conT ''BSLC.ByteString) .
+				appE (varE 'BSLC.pack) . litE . stringL) val
 		lift $ flip (valD $ varP bin') [] $ normalB $
 			letE [flip (valD $ tupP [varP fv, varP ret]) [] $ normalB $
 					appsE [varE 'fromBinary, getn item, bin]] $
 			condE (infixApp (varE fv) (varE '(==))
-					(litE (integerL val) `sigE` conT ''Integer))
+					(lit `sigE` sig))
 				(varE ret)
 				[e| error "bad value" |]
-    | Constant (Right val) <- valueOf item = do
-	cs' <- get
-	cs'' <- lift $ newName "bin'"
-	let t = dropE' (getn item) cs'
-	let p = val `equal'` takeE' (getn item) cs'
-	let e = [e| error "bad value" |]
-	d <- lift $ valD (varP cs'') (normalB $ condE p t e) []
-	put $ varE cs''
-	return d
-    | Variable var <- valueOf item = do
-	cs' <- get
-	cs'' <- lift $ newName "bin'"
-	def <- lift $ valD (tupP [varP $ fromJust $ lookup var np, varP cs''])
-		(normalB $ appE (appE (varE 'fromBinary) $ getn item) cs') []
-	put $ varE cs''
-	return def
-    | otherwise = error "never occur"
+	| Variable var <- valueOf item = do
+		bin <- get
+		bin' <- lift $ newName "bin'"
+		put $ varE bin'
+		lift $ valD (tupP [varP $ fromJust $ lookup var np, varP bin'])
+			(normalB $ appE (appE (varE 'fromBinary) $ getn item) bin)
+			[]
+	| otherwise = error "never occur"
 
-writing :: Name -> Name -> [BSItem] -> DecQ
-writing name argn body = do
+writing :: Name -> [BSItem] -> ClauseQ
+writing argn body = do
 	arg <- newName "_arg"
-	bs <- newName "_bs"
-	let run = appE (varE 'mconcat) $ listE $ (<$> body) $
-		writeField bs arg argn <$> bytesOf <*> valueOf
-	funD name
-		[clause [varP arg, varP bs] (normalB run) []]
+	bin <- newName "_bin"
+	let size = expression (varE bin) (varE arg) argn . bytesOf 
+	flip (clause [varP arg, varP bin]) [] $ normalB $
+		appE (varE 'mconcat) $ listE $ (<$> body) $
+			writeField bin <$> size <*> valueOf
 
-writeField :: Name -> Name -> Name -> Expression -> Value -> ExpQ
-writeField bs arg argn size (Constant (Left n)) =
-	appsE [fiend', expression (varE bs) (varE arg) argn size,
-		sigE (litE $ integerL $ fromIntegral n)
-		(conT ''Int)]
-	where
-	fiend' = varE 'toBinary
-writeField _ _ _ _ (Constant (Right s)) =
-	appsE [varE 'fs, litE $ stringL s]
-writeField bs arg argn bytes (Variable v) =
-	fieldValueToStr bs arg argn bytes False $ getField bs v
-
-fs :: Binary a => String -> a
-fs = makeBinary . BSLC.pack
-
-fieldValueToStr :: Name -> Name -> Name -> Expression -> Bool -> ExpQ -> ExpQ
-fieldValueToStr bs arg argn size False =
-	appE $ appE (varE 'toBinary) (expression (varE bs) (varE arg) argn size)
-fieldValueToStr bs arg argn size True = \val ->
-	appE (varE 'mconcat) $ appsE [
-		varE 'map, appE (varE 'toBinary) (expression (varE bs) (varE arg) argn size), val]
-
-getField :: Name -> Name -> ExpQ
-getField bs v = appE (varE v) (varE bs)
-
-equal' :: String -> ExpQ -> ExpQ
-equal' x y = infixE (Just $ litE $ stringL x) (varE '(==)) (Just y)
-
-takeE' :: ExpQ -> ExpQ -> ExpQ
-takeE' n xs =
-	appE (varE 'BSLC.unpack) $ appE (varE 'fst) $ appsE [varE 'getBytes, n, xs]
-
-dropE' :: ExpQ -> ExpQ -> ExpQ
-dropE' n xs = appsE [varE 'dp, n, xs]
-
-dp :: Binary a => Int -> a -> a
-dp n = snd . getBytes n
+writeField :: Name -> ExpQ -> Value -> ExpQ
+writeField _ size (Constant val) =  varE 'toBinary `appE` size `appE` either
+	((`sigE` conT ''Integer) . litE . integerL)
+	((`sigE` conT ''BSLC.ByteString) . appE (varE 'BSLC.pack) . litE . stringL)
+	val
+writeField bin size (Variable v) =
+	varE 'toBinary `appE` size `appE` (varE v `appE` varE bin)
