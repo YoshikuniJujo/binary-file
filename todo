@@ -1,21 +1,21 @@
 1. bits を指定できるようにするかどうか考える
 2. 読み捨て _ とかかな。
-3. リファクタリング
-4. ByteString を切り離してもいいかもしれない <- ただし lazy ByteString が必要
-7. ByteString ではなく Lazy.ByteString を中間として使っているがその正当性を考慮する
-6. expression で if ... then ... else ... や \... -> ... や case ... of ... や
+3. ByteString を切り離してもいいかもしれない <- ただし lazy ByteString が必要
+4. ByteString ではなく Lazy.ByteString を中間として使っているがその正当性を考慮する
+5. expression で if ... then ... else ... や \... -> ... や case ... of ... や
 	let ... in ... を許すべきかどうか考える
 	必要かどうかが問題だ
-7. 以下の refactoring
-	File.Binary.Quote
+6. 以下の refactoring
 	File.Binary.Instances
 	File.Binary.Instances.BigEndian
 	File.Binary.Instances.LittleEndian
 	examples/readPNG.hs
 	examples/readBitmap.hs
-8. field の値が正しくなかった場合に error を出して終了する仕様を直す
+	examples/readHex.hs
+	examples/tiny.hs
+	File.Binary.Parse
+	File.Binary.Quote
+7. field の値が正しくなかった場合に error を出して終了する仕様を直す
 	あるいは error のままにするほうが良いかもしれない
 	error のままであったとしても exception を選ぶべきか考える
-9. 外の値をたとえば Main.var のように入手できるようにする
-10. そろそろ hackage に up する
-11. homepage の作成
+8. homepage の作成
