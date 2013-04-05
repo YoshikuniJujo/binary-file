@@ -8,7 +8,7 @@
 
 module File.Binary.Parse (
 	parse,
-	BinaryStructure, bsName, bsDerive, bsArgName, bsArgType, bsBody,
+	BinaryStructure, bsName, bsDerive, bsArgName, bsArgType, bsItem,
 	BSItem, bytesOf, valueOf,
 	Value(..), variables,
 	Expression, expression,
@@ -35,7 +35,7 @@ data BinaryStructure = BinaryStructure {
 	bsDerive :: [Name],
 	bsArgName :: Name,
 	bsArgType :: TypeQ,
-	bsBody :: [BSItem]
+	bsItem :: [BSItem]
  }
 
 data BSItem = BSItem {
