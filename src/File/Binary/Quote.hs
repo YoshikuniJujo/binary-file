@@ -40,7 +40,7 @@ top bs = let c = bsName bs in (\d i -> [d, i])
 		funD 'toBinary $ (: []) $ writing (bsArgName bs) (bsItem bs)
 	 ]
 
-reading :: Name -> Name -> [BSItem] -> ClauseQ
+reading :: Name -> String -> [BSItem] -> ClauseQ
 reading con argn items = do
 	arg <- newName "_arg"
 	bin <- newName "bin"
@@ -90,7 +90,7 @@ binToField size (Variable var) = do
 	liftQ $ valD (tupP [varP tmp, varP bin'])
 		(normalB $ appsE [varE 'fromBinary, size, bin]) []
 
-writing :: Name -> [BSItem] -> ClauseQ
+writing :: String -> [BSItem] -> ClauseQ
 writing argn items = do
 	arg <- newName "_arg"
 	dat <- newName "_dat"

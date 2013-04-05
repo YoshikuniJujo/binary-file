@@ -29,14 +29,14 @@ parse = either (error . show) id . parseString top ""
 data BinaryStructure = BinaryStructure {
 	bsName :: Name,
 	bsDerive :: [Name],
-	bsArgName :: Name,
+	bsArgName :: String,
 	bsArgType :: TypeQ,
 	bsItem :: [BSItem] }
 
 data BSItem = BSItem { argOf :: Expression, typeOf :: TypeQ, valueOf :: Value }
-type Expression	= Reader (ExpQ, ExpQ, Name) ExpQ
+type Expression	= Reader (ExpQ, ExpQ, String) ExpQ
 
-expression :: ExpQ -> ExpQ -> Name -> Expression -> ExpQ
+expression :: ExpQ -> ExpQ -> String -> Expression -> ExpQ
 expression ret arg argn e = runReader e (ret, arg, argn)
 
 data Value = Constant (Either Integer String) | Variable Name
@@ -45,9 +45,9 @@ variables :: [BSItem] -> [(Name, TypeQ)]
 variables = catMaybes . map (\bsi -> case valueOf bsi of
 		Variable var -> Just (var, typeOf bsi); _ -> Nothing)
 
-varToExp :: String -> (ExpQ, ExpQ, Name) -> ExpQ
+varToExp :: String -> (ExpQ, ExpQ, String) -> ExpQ
 varToExp var (ret, arg, argn)
-	| mkName var == argn = arg
+	| var == argn = arg
 	| '.' `elem` var = varE $ mkName var
 	| otherwise = appE (varE $ mkName var) ret
 
@@ -62,9 +62,9 @@ der :: [Name]
 				{ mkName $3 : map (\(_, _, n) -> mkName n) $4 }
 	/ ''			{ [] }
 
-arg :: (Name, TypeQ)
-	= emp var sp '::' sp typ	{ (mkName $2, $5) }
-	/ ''				{ (mkName "_", conT $ mkName "()") }
+arg :: (String, TypeQ)
+	= emp var sp '::' sp typ	{ ($2, $5) }
+	/ ''				{ ("_", conT $ mkName "()") }
 
 dat :: BSItem
 	= emp ex sp typS sp ':' sp val	{ BSItem $2 $4 $7 }
