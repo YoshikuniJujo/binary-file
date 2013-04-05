@@ -7,17 +7,13 @@
 	-fno-warn-unused-do-bind #-}
 
 module File.Binary.Parse (
-	parse,
-	BinaryStructure, bsName, bsDerive, bsArgName, bsArgType, bsItem,
-	BSItem, bytesOf, valueOf,
-	Value(..), variables,
-	Expression, expression,
+	parse, BinaryStructure, bsName, bsDerive, bsArgName, bsArgType, bsItem,
+	BSItem, argOf, valueOf, Value(..), variables, Expression, expression,
 ) where
 
-import Prelude hiding (exp)
 import Control.Applicative ((<$>), (<*>))
-import Control.Arrow ((&&&))
 import "monads-tf" Control.Monad.Reader (Reader, runReader, ask)
+import Data.Maybe (catMaybes)
 import Numeric (readHex)
 
 import Text.Peggy (peggy, parseString, space, defaultDelimiter)
@@ -35,33 +31,19 @@ data BinaryStructure = BinaryStructure {
 	bsDerive :: [Name],
 	bsArgName :: Name,
 	bsArgType :: TypeQ,
-	bsItem :: [BSItem]
- }
+	bsItem :: [BSItem] }
 
-data BSItem = BSItem {
-	bytesOf :: Expression,
-	typeOf :: TypeQ,
-	valueOf :: Value
- }
-
+data BSItem = BSItem { argOf :: Expression, typeOf :: TypeQ, valueOf :: Value }
 type Expression	= Reader (ExpQ, ExpQ, Name) ExpQ
 
 expression :: ExpQ -> ExpQ -> Name -> Expression -> ExpQ
 expression ret arg argn e = runReader e (ret, arg, argn)
 
-data Value
-	= Constant { constant :: Either Integer String }
-	| Variable { variable :: Name }
+data Value = Constant (Either Integer String) | Variable Name
 
 variables :: [BSItem] -> [(Name, TypeQ)]
-variables = map (variable . valueOf &&& typeOf) .
-	filter (\bsi -> case valueOf bsi of Variable _ -> True; _ -> False)
-
-{-
-variables :: [Value] -> [Name]
-variables =
-	map variable . filter (\v -> case v of Variable _ -> True; _ -> False)
--}
+variables = catMaybes . map (\bsi -> case valueOf bsi of
+		Variable var -> Just (var, typeOf bsi); _ -> Nothing)
 
 [peggy|
 
@@ -79,7 +61,7 @@ arg :: (Name, TypeQ)
 	/ ''				{ (mkName "_", conT $ mkName "()") }
 
 dat :: BSItem
-	= emp exp sp typS sp ':' sp val	{ BSItem $2 $4 $7 }
+	= emp ex sp typS sp ':' sp val	{ BSItem $2 $4 $7 }
 
 typS :: TypeQ
 	= '{' typ '}'			{ $1 }
@@ -90,17 +72,17 @@ val :: Value
 	/ num				{ Constant $ Left $1 }
 	/ string			{ Constant $ Right $1 }
 
-exp :: Expression
-	= exp sp op sp expOp1		{ uInfixE <$> $1 <*> $3 <*> $5 }
-	/ expOp1
+ex :: Expression
+	= ex sp op sp exOp1		{ uInfixE <$> $1 <*> $3 <*> $5 }
+	/ exOp1
 
-expOp1 :: Expression
-	= expOp1 sp exp1		{ appE <$> $1 <*> $3 }
-	/ exp1
+exOp1 :: Expression
+	= exOp1 sp ex1			{ appE <$> $1 <*> $3 }
+	/ ex1
 
-exp1 :: Expression
+ex1 :: Expression
 	= '(' tupExp ')'
-	/ '(' exp ')'			{ parensE <$> $1 }
+	/ '(' ex ')'			{ parensE <$> $1 }
 	/ '()'				{ return $ conE $ mkName "()" }
 	/ num				{ return $ litE $ integerL $1 }
 	/ lname				{ return $ conE $1 }
@@ -111,7 +93,7 @@ exp1 :: Expression
 op :: Expression
 	= [!\\#$%&*+./<=>?@^|~-:]+	{ return $ varE $ mkName $1 }
 	/ '`' var '`'			{ return $ varE $1 }
-tupExp :: Expression = exp (sp ',' sp exp)+
+tupExp :: Expression = ex (sp ',' sp ex)+
 	{ (.) tupE . (:) <$> $1 <*> mapM (\(_, _, e) -> e) $2 }
 
 typ :: TypeQ

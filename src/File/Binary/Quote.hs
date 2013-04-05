@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, PatternGuards, TupleSections, PackageImports #-}
+{-# LANGUAGE TemplateHaskell, TupleSections, PackageImports #-}
 
 module File.Binary.Quote (Field(..), Binary(..), binary) where
 
@@ -18,7 +18,7 @@ import qualified Data.ByteString.Lazy.Char8 as BSLC (ByteString, pack)
 
 import File.Binary.Parse (
 	parse, BinaryStructure, bsName, bsDerive, bsArgName, bsArgType, bsItem,
-	BSItem, bytesOf, valueOf, Value(..), variables, expression)
+	BSItem, argOf, valueOf, Value(..), variables, expression)
 import File.Binary.Classes (Field(..), Binary(..))
 
 --------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ reading con argn items = do
 	bin <- newName "bin"
 	flip (clause [varP arg, varP bin]) [] $
 		normalB $ letRec $ binToDat con items (varE bin) $ \ret ->
-			expression ret (varE arg) argn . bytesOf
+			expression ret (varE arg) argn . argOf
 
 letRec :: (ExpQ -> ExpQ) -> ExpQ
 letRec e = do
@@ -58,7 +58,7 @@ binToDat :: Name -> [BSItem] -> ExpQ -> (ExpQ -> BSItem -> ExpQ) -> ExpQ -> ExpQ
 binToDat con items bin size ret = do
 	((binds, rest), rts) <- runWriterT $ (`runStateT` bin) $
 		(zipWithM binToField <$> map (size ret) <*> map valueOf) items
-	letE (return <$> binds) $ tupE $ (: [rest]) $ recConE con $ (return <$> rts)
+	letE (return <$> binds) $ tupE $ (: [rest]) $ recConE con $ return <$> rts
 
 type FieldMonad = StateT ExpQ (WriterT [FieldExp] Q)
 
@@ -96,7 +96,7 @@ writing argn items = do
 	dat <- newName "_dat"
 	flip (clause [varP arg, varP dat]) [] $ normalB $
 		appE (varE 'mconcat) $ listE $ (<$> items) $ fieldToBin dat
-			<$> expression (varE dat) (varE arg) argn . bytesOf
+			<$> expression (varE dat) (varE arg) argn . argOf
 			<*> valueOf
 
 fieldToBin :: Name -> ExpQ -> Value -> ExpQ
