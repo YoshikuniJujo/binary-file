@@ -19,3 +19,34 @@
 	あるいは error のままにするほうが良いかもしれない
 	error のままであったとしても exception を選ぶべきか考える
 8. homepage の作成
+9. 1 をやるために instance Field Bool を書きはじめたが、
+	toBinary のところで問題が発生
+	つまり、toBinary が Binary a => a -> a のような型を持つ必要がある
+	しかし、それをやるコストが見合うかどうか考える必要がある
+	class Field r where
+		toBinary :: Binary s => r -> s -> s
+	のような感じになり、
+	s -> s は末尾にまたは先頭に追加していく形になる
+	しかし、これだと concat による最適化が利かなくなる
+	また末尾に足していくのと先頭に足していくのとどちらが効率的かは、
+	Binary の種類によるだろう
+
+	あるいは toBinary を Either [Bool] b のようにするというのもひとつの手だ
+	こっちのほうが現実的だ
+	これなら、bit 型ではない型においては Left をつけるというだけですむ
+	いずれにしても考慮の必要がある
+
+	おそらく後者の方法を採るだろう
+
+	しかし、後者の方法を採るにしても [Bool] を LittleEndian とするか、
+	BigEndian とするかで問題が生じる
+	まあ LittleEndian としておいたほうが扱いやすいので後者にするとは思うが
+	[Right [Bool], Left b, Left b, Right [Bool], Right [Bool], ... ]
+	のような感じになるわけだ
+	そしたら、[Bool] が続いた場合には、
+	それをひとつにまとめるようにする必要があるが、
+	ここにも BigEndian と LittleEndian の問題が出てくる
+
+	つまり、Either Endian b のようにして、
+	data Endian = BigEndian [Bool] | LittleEndian [Bool] とすべきだろう
+	そうすれば問題なくつなげることができる
