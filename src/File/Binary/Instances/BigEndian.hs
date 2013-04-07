@@ -8,14 +8,13 @@ module File.Binary.Instances.BigEndian (
 import File.Binary.Classes
 import qualified Data.ByteString.Lazy as BSL
 import Data.Word
+import Control.Applicative
 
 instance Field Int where
 	type FieldArgument Int = Int
-	fromBinary n s = (
-		wordsToInt $ BSL.unpack $ fst $ getBytes n s,
-		snd $ getBytes n s
-	 )
---	toBinary n = makeBinary . BSLC.pack . reverse . lintToBin n . fromIntegral
+	fromBinary n s =
+		(,) <$> wordsToInt . BSL.unpack . fst <*> snd $ getBytes n s
+--		(wordsToInt $ BSL.unpack $ fst $ getBytes n s, snd $ getBytes n s)
 	toBinary n = makeBinary . BSL.pack . intToWords n
 
 wordsToInt :: Integral i => [Word8] -> i
@@ -34,5 +33,4 @@ instance Field Integer where
 		wordsToInt $ BSL.unpack $ fst $ getBytes n s,
 		snd $ getBytes n s
 	 )
---	toBinary n = makeBinary . BSLC.pack . reverse . lintToBin n . fromIntegral
 	toBinary n = makeBinary . BSL.pack . intToWords n
