@@ -304,3 +304,120 @@ expression 関数を ParseBinaryStructure に移す。
 それによって、Expression の中身を隠蔽できる。
 そうすれば、内部的に Expression を Reader モナドで表現するようにしても、
 他の module への変更は不必要となる。
+
+2013.04.08 Mon.
+
+todo の log
+9. 1 をやるために instance Field Bool を書きはじめたが、
+	toBinary のところで問題が発生
+	つまり、toBinary が Binary a => a -> a のような型を持つ必要がある
+	しかし、それをやるコストが見合うかどうか考える必要がある
+	class Field r where
+		toBinary :: Binary s => r -> s -> s
+	のような感じになり、
+	s -> s は末尾にまたは先頭に追加していく形になる
+	しかし、これだと concat による最適化が利かなくなる
+	また末尾に足していくのと先頭に足していくのとどちらが効率的かは、
+	Binary の種類によるだろう
+
+	あるいは toBinary を Either [Bool] b のようにするというのもひとつの手だ
+	こっちのほうが現実的だ
+	これなら、bit 型ではない型においては Left をつけるというだけですむ
+	いずれにしても考慮の必要がある
+
+	おそらく後者の方法を採るだろう
+
+	しかし、後者の方法を採るにしても [Bool] を LittleEndian とするか、
+	BigEndian とするかで問題が生じる
+	まあ LittleEndian としておいたほうが扱いやすいので後者にするとは思うが
+	[Right [Bool], Left b, Left b, Right [Bool], Right [Bool], ... ]
+	のような感じになるわけだ
+	そしたら、[Bool] が続いた場合には、
+	それをひとつにまとめるようにする必要があるが、
+	ここにも BigEndian と LittleEndian の問題が出てくる
+
+	つまり、Either Endian b のようにして、
+	data Endian = BigEndian [Bool] | LittleEndian [Bool] とすべきだろう
+	そうすれば問題なくつなげることができる
+10. 上記の解決法だと、Instance Field r => Field [r] で問題が生じる
+	Either BitString Binary の代わりに (BitString, Binary, BitString) とすれば、
+	問題は解決する
+	そうすると、普通の byte については、([], some, []) のような感じとなり、
+	普通の bit については、(some, "", []) のような感じとなるだろう
+	これは、([], "", some) としても良い
+	ここに冗長性があって嫌な気もする
+	また、(some, "", other) のような微妙な例も作れてしまう
+	これらの問題は、class のなかに
+	toBinary, toBits, toBitsBinary の3つを入れればうまくいきそうだ
+	下のような感じとする
+	class Field f where
+		...
+		toBinary = undefined
+		toBits = undefined
+		toBitsBinary f = ([], toBinary, [])
+	これだとうまくいかないが、Bits を使いたいというのを特殊な需要と考えれば、
+	toBits を消してしまうという方法があるかもしれない
+11. data Some = Some (Int, Word8) (Int, Word8) Binary (Int, Word8) (Int, Word8)
+	のようなデータ構造のほうが良いかもしれない
+	これは何やら複雑すぎる気もするがこれならすべての可能性に対処できるかと思う
+12. 上記には問題がある。以下の構造はどうか
+	data Some
+		= Some (Int, Word8) (Int, Word8) Binary (Int, Word8) (Int, Word8)
+		| Other (Int, Word8) (Int, Word8)
+13. ちなみに、toBinary :: Binary s => r -> s よりも、
+	toBinary :: r -> ByteString のほうが良いかもしれない
+	考えること
+14. 12 をもっとわかりやすく定義すると、
+	data BitString = {
+		bigEndian :: (Int, Word8),
+		littleEndian :: (Int, Word8)
+	 }
+	data Some = Some BitString Binary BitString | Other BitString
+	となるだろう。あるいは
+	type Some = Either (BitString, Binary, BitString) BitString
+	type Some = (BitString, Maybe (Binary, BitString))
+	か
+15. (Int, Word8) よりも [Bool] のほうが良いか
+	data BitString = {
+		bigEnd :: [Bool],
+		littleEnd :: [Bool]
+	 }
+	のような感じ
+16. こうなってくると、toBinary :: r -> s -> s とした方が良さそうだ
+	しかし、ここでも右結合と左結合の問題がある
+	文字列はたいてい右結合のほうが良さそうなのだが、
+	そうすると、上の構造にはできないように思う
+	toBinary some = (tob some ++) といった感じか
+	しかも、これだと concat が使えないな
+17. toBinary :: r -> (Word8 -> ByteString) のような感じにすれば良さげか
+	とすると mconcat はやはり使えない
+18. うまくいきそうだ。以下のようにすれば良い
+	class Field f where
+		...
+		consToBinary :: ... -> f -> ([Bool], b) -> ([Bool], b)
+	ただ、これだと BigEndian と LittleEndian の違いを表せないので、
+	もう一息だ
+	以下のようにすれば良い
+		consToBinary :: ... -> f -> ([Bool], [Bool], b) -> ([Bool], ...)
+	すると、fromBinary はこうなる
+		fromBinary :: ... -> ([Bool], [Bool], b) -> (f, ([Bool] ...))
+	しかし、別にこれを作ったほうが良いだろう
+		fromBitBinary :: (同上)
+	そして、それぞれこうしておく
+		consToBinary x (bl, bn) = toBinary x : blToBn bl ++ bn
+		fromBitBinary (bl, bn) = ([], fromBinary $ blToBn bl ++ bn)
+	これは、いけるな
+19. byte 境界以外で byte を取ろうとした場合には error とすれば良いかもしれない
+	そうすれば、([Bool], b) とすることができる
+	[Bool] の長さが 8 となった段階で b に足すか
+	あるいは、8 となったあと、さらに足そうとした段階で b に足すかを選ぶ
+	必要がある
+	8 となった段階で b に足しといたほうが簡単そうだ
+
+00011011
+0x1b
+
+0x4b
+01001011
+0x2b
+00101011
