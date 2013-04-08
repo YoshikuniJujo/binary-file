@@ -67,7 +67,8 @@ arg :: (String, TypeQ)
 	/ ''				{ ("_", conT $ mkName "()") }
 
 dat :: BSItem
-	= emp ex sp typS sp ':' sp val	{ BSItem $2 $4 $7 }
+	= emp ex? sp typS sp ':' sp val	{ BSItem
+		(maybe (return $ conE $ mkName "()") id $2) $4 $7 }
 
 typS :: TypeQ
 	= '{' typ '}'			{ $1 }
