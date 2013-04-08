@@ -23,7 +23,7 @@ instance Field Integer where
 instance Field Bool where
 	type FieldArgument Bool = ()
 	fromBitsBinary () ([], bin) = fromBitsBinary () $ binToBools bin
-	fromBitsBinary () ((b : bs), bin) = (b, (bs, bin))
+	fromBitsBinary () (b : bs, bin) = (b, (bs, bin))
 	consToBitsBinary () b (bs, bin)
 		| length bs == 7 = ([], (b : bs) `appendBools` bin)
 		| otherwise = (b : bs, bin)
@@ -34,7 +34,7 @@ instance Field BitsInt where
 	type FieldArgument BitsInt = Int
 	fromBitsBinary 0 bb = (BitsInt 0, bb)
 	fromBitsBinary n ([], bin) = fromBitsBinary n $ binToBools bin
-	fromBitsBinary n ((b : bs), bin) = let
+	fromBitsBinary n (b : bs, bin) = let
 		(BitsInt ret, rest) = fromBitsBinary (n - 1) (bs, bin) in
 		(BitsInt $ fromEnum b .|. ret `shiftL` 1, rest)
 	consToBitsBinary 0 _ bb = bb

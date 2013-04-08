@@ -6,7 +6,7 @@
 
 module File.Binary.Instances () where
 
-import File.Binary.Classes (Field(..), Binary(..), BitsBinary)
+import File.Binary.Classes (Field(..), Binary(..))
 import qualified Data.ByteString as BS
 	(ByteString, take, drop, concat)
 import qualified Data.ByteString.Lazy as BSL
@@ -17,7 +17,7 @@ import Data.Monoid
 
 instance Field BSL.ByteString where
 	type FieldArgument BSL.ByteString = Int
-	fromBinary n str = getBytes n str
+	fromBinary = getBytes
 	toBinary _ = makeBinary
 
 instance Field BS.ByteString where
@@ -37,8 +37,7 @@ instance Field r => Field [r] where
 	type FieldArgument [r] = (FieldArgument r, Maybe Int)
 	fromBitsBinary (a, Just b) s = (b `times` fromBitsBinary a) s
 	fromBitsBinary (a, Nothing) s = whole mempty (fromBitsBinary a) s
---	toBinary (a, _) rs = mconcat $ map (toBinary a) rs
-	consToBitsBinary (a, _) rs bin = foldr ($) bin $ map (consToBitsBinary a) rs
+	consToBitsBinary (a, _) rs bin = foldr (consToBitsBinary a) bin rs
 
 times :: Int -> (s -> (ret, s)) -> s -> ([ret], s)
 times 0 _ s = ([], s)
@@ -55,25 +54,11 @@ whole emp f s
 		(rets, rest') = whole emp f rest in
 		(ret : rets, rest')
 
-whole' :: Binary s => (BitsBinary s -> (ret, BitsBinary s)) -> BitsBinary s ->
-	([ret], BitsBinary s)
-whole' f s
-	| s == ([], mempty) = ([], s)
-	| otherwise = let
-		(ret, rest) = f s
-		(rets, rest') = whole' f rest in
-		(ret : rets, rest')
-
 --------------------------------------------------------------------------------
 
 instance Binary String where
 	getBytes n = BSLC.pack . take n &&& drop n
 	makeBinary = BSLC.unpack
-
-{-
-	appendBinary = (++)
-	emptyBinary = null
--}
 
 instance Binary BSL.ByteString where
 	getBytes n = BSL.take (fromIntegral n) &&& BSL.drop (fromIntegral n)

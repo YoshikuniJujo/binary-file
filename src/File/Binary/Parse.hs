@@ -13,7 +13,7 @@ module File.Binary.Parse (
 
 import Control.Applicative ((<$>), (<*>))
 import "monads-tf" Control.Monad.Reader (Reader, runReader, ask)
-import Data.Maybe (catMaybes)
+import Data.Maybe (mapMaybe)
 import Numeric (readHex)
 
 import Text.Peggy (peggy, parseString, space, defaultDelimiter)
@@ -42,7 +42,7 @@ expression ret arg argn e = runReader e (ret, arg, argn)
 data Value = Constant (Either Integer String) | Variable Name
 
 variables :: [BSItem] -> [(Name, TypeQ)]
-variables = catMaybes . map (\bsi -> case valueOf bsi of
+variables = mapMaybe (\bsi -> case valueOf bsi of
 		Variable var -> Just (var, typeOf bsi); _ -> Nothing)
 
 varToExp :: String -> (ExpQ, ExpQ, String) -> ExpQ

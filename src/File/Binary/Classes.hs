@@ -20,7 +20,7 @@ class Field r where
 		(f, ([], rest))
 	fromBitsBinary _ _ = error "fromBitsBinary: not 8 bits"
 	consToBitsBinary a f ([], b) = ([], toBinary a f `mappend` b)
-	consToBitsBinary a _ _ = error $ "consToBitsBinary: not 8 bits"
+	consToBitsBinary _ _ _ = error "consToBitsBinary: not 8 bits"
 
 	fromBinary a b = case fromBitsBinary a ([], b) of
 		(f, ([], rest)) -> (f, rest)
