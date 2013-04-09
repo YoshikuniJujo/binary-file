@@ -4,7 +4,7 @@ module File.Binary.Quote (Field(..), Binary(..), binary) where
 
 import File.Binary.Parse (
 	parse, Structure, sName, sDerive, sArgName, sArgType, sItems,
-	BSItem, argOf, valueOf, Value, expression)
+	SItem, argOf, valueOf, Value, expression)
 import File.Binary.Classes (Field(..), Binary(..))
 import Language.Haskell.TH (
 	Q, DecsQ, ClauseQ, BodyQ, ExpQ, Dec, Exp(..), Name, FieldExp,
@@ -37,7 +37,7 @@ top bs = let c = sName bs in (\d i -> [d, i])
 		funD 'fromBits $ (: []) $ reading c (sArgName bs) (sItems bs),
 		funD 'consToBits $ (: []) $ writing (sArgName bs) (sItems bs)]
 
-reading :: Name -> String -> [BSItem] -> ClauseQ
+reading :: Name -> String -> [SItem] -> ClauseQ
 reading c argn is = do
 	arg <- newName "_arg"
 	b <- newName "bin"
@@ -50,7 +50,7 @@ letRec e = normalB $ do
 	letE [valD (tupP [varP ret, varP rest]) (normalB $ e $ varE ret) []] $
 		tupE [varE ret, varE rest]
 
-readfs :: Name -> [BSItem] -> ExpQ -> (ExpQ -> BSItem -> ExpQ) -> ExpQ -> ExpQ
+readfs :: Name -> [SItem] -> ExpQ -> (ExpQ -> SItem -> ExpQ) -> ExpQ -> ExpQ
 readfs con items bin size ret = do
 	((binds, rest), rts) <- runWriterT $ (`runStateT` bin) $
 		(zipWithM readf <$> map (size ret) <*> map valueOf) items
@@ -85,7 +85,7 @@ readf size (Right (var, _)) = do
 	liftQ $ valD (tupP [varP tmp, varP bin'])
 		(normalB $ appsE [varE 'fromBits, size, bin]) []
 
-writing :: String -> [BSItem] -> ClauseQ
+writing :: String -> [SItem] -> ClauseQ
 writing argn items = do
 	[arg, dat, bin0] <- mapM newName ["_arg", "_dat", "bin0"]
 	flip (clause [varP arg, varP dat, varP bin0]) [] $ normalB $

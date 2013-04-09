@@ -8,13 +8,13 @@
 
 module File.Binary.Parse (
 	parse, Structure, sName, sDerive, sArgName, sArgType, sItems,
-	BSItem, argOf, valueOf, Value, Expression, expression
+	SItem, argOf, valueOf, Value, expression
 ) where
 
 import Text.Peggy (peggy, parseString, space, defaultDelimiter)
 import Language.Haskell.TH (
-	ExpQ, litE, varE, conE, appE, tupE, integerL, uInfixE, parensE,
-	TypeQ, conT, appT, listT, tupleT, Name, mkName)
+	ExpQ, integerL, litE, varE, conE, tupE, appE, uInfixE, parensE,
+	TypeQ, conT, listT, tupleT, appT, Name, mkName)
 import "monads-tf" Control.Monad.Reader (Reader, runReader, ask)
 import Control.Applicative ((<$>), (<*>))
 import Control.Arrow(second)
@@ -31,9 +31,9 @@ data Structure = Structure {
 	sDerive :: [Name],
 	sArgName :: String,
 	sArgType :: TypeQ,
-	sItems :: [BSItem] }
+	sItems :: [SItem] }
 
-data BSItem = BSItem { argOf :: Expression, valueOf :: Value }
+data SItem = SItem { argOf :: Expression, valueOf :: Value }
 type Expression	= Reader (ExpQ, ExpQ, String) ExpQ
 
 expression :: ExpQ -> ExpQ -> String -> Expression -> ExpQ
@@ -61,8 +61,8 @@ arg :: (String, TypeQ)
 	= emp var sp '::' sp typ	{ ($2, $5) }
 	/ ''				{ ("_", conT $ mkName "()") }
 
-dat :: BSItem = emp ex? sp typS sp ':' sp val
-	{ BSItem (fromMaybe (return $ conE $ mkName "()") $2) $
+dat :: SItem = emp ex? sp typS sp ':' sp val
+	{ SItem (fromMaybe (return $ conE $ mkName "()") $2) $
 		either Left (Right . second (const $4)) $7 }
 
 typS :: TypeQ = '{' typ '}' / ''	{ conT $ mkName "Int" }
