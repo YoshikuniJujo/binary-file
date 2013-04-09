@@ -41,9 +41,9 @@ instance Field Integer where
 
 instance Field Bool where
 	type FieldArgument Bool = ()
-	fromBitsBinary () ([], bin) = fromBitsBinary () $ binToBools bin
-	fromBitsBinary () (bs, bin) = (last bs, (init bs, bin))
-	consToBitsBinary () b (bs, bin)
+	fromBits () ([], bin) = fromBits () $ binToBools bin
+	fromBits () (bs, bin) = (last bs, (init bs, bin))
+	consToBits () b (bs, bin)
 		| length bs == 7 = ([], (bs ++ [b]) `appendBools` bin)
 		| otherwise = (bs ++ [b], bin)
 
@@ -51,16 +51,8 @@ data BitsInt = BitsInt Int deriving Show
 
 instance Field BitsInt where
 	type FieldArgument BitsInt = Int
-	fromBitsBinary n = first BitsInt . fbb 0 n
-	consToBitsBinary n (BitsInt f) bb = ctbb n f bb
-{-
-	consToBitsBinary 0 _ bb = bb
-	consToBitsBinary n (BitsInt f) bb = let
-		(bs', bin') = consToBitsBinary (n - 1) (BitsInt $ f `shiftR` 1) bb in
-		if length bs' == 7
-			then ([], (bs' ++ [toEnum (f .&. 1)]) `appendBools` bin')
-			else (bs' ++ [toEnum (f .&. 1)], bin')
--}
+	fromBits n = first BitsInt . fbb 0 n
+	consToBits n (BitsInt f) = ctbb n f
 
 fbb :: Binary b => Int -> Int -> ([Bool], b) -> (Int, ([Bool], b))
 fbb r 0 bb = (r, bb)
@@ -71,9 +63,9 @@ fbb r n (bs, bin) = fbb (r `shiftL` 1 .|. fromIntegral (fromEnum $ last bs))
 ctbb :: Binary b => Int -> Int -> ([Bool], b) -> ([Bool], b)
 ctbb 0 _ r = r
 ctbb n f (bs, bin)
-	| length bs == 7 = ctbb (n - 1) (f `shiftR` 1) $
+	| length bs == 7 = ctbb (n - 1) (f `shiftR` 1)
 		([], (bs ++ [toEnum (f .&. 1)]) `appendBools` bin)
-	| otherwise = ctbb (n - 1) (f `shiftR` 1) $
+	| otherwise = ctbb (n - 1) (f `shiftR` 1)
 		(bs ++ [toEnum (f .&. 1)], bin)
 
 binToBools :: Binary b => b -> ([Bool], b)

@@ -35,9 +35,9 @@ instance Field Char where
 
 instance Field r => Field [r] where
 	type FieldArgument [r] = (FieldArgument r, Maybe Int)
-	fromBitsBinary (a, Just b) s = (b `times` fromBitsBinary a) s
-	fromBitsBinary (a, Nothing) s = whole mempty (fromBitsBinary a) s
-	consToBitsBinary (a, _) rs bin = foldr (consToBitsBinary a) bin rs
+	fromBits (a, Just b) s = (b `times` fromBits a) s
+	fromBits (a, Nothing) s = whole mempty (fromBits a) s
+	consToBits (a, _) rs bin = foldr (consToBits a) bin rs
 
 times :: Int -> (s -> (ret, s)) -> s -> ([ret], s)
 times 0 _ s = ([], s)

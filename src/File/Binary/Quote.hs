@@ -35,8 +35,8 @@ top bs = let c = bsName bs in (\d i -> [d, i])
 			variables $ bsItem bs] (bsDerive bs)
 	<*> instanceD (cxt []) (appT (conT ''Field) (conT c)) [
 		tySynInstD ''FieldArgument [conT c] $ bsArgType bs,
-		funD 'fromBitsBinary $ (: []) $ reading c (bsArgName bs) (bsItem bs),
-		funD 'consToBitsBinary $ (: []) $ writing (bsArgName bs) (bsItem bs)
+		funD 'fromBits $ (: []) $ reading c (bsArgName bs) (bsItem bs),
+		funD 'consToBits $ (: []) $ writing (bsArgName bs) (bsItem bs)
 	 ]
 
 reading :: Name -> String -> [BSItem] -> ClauseQ
@@ -80,7 +80,7 @@ binToField size (Constant val) = do
 			appE (varE 'BSLC.pack) . litE . stringL) val
 	liftQ $ flip (valD $ varP bin') [] $ normalB $
 		letE [flip (valD $ tupP [varP rv, varP rest]) [] $ normalB $
-			appsE [varE 'fromBitsBinary, size, bin]] $
+			appsE [varE 'fromBits, size, bin]] $
 		condE (infixApp (varE rv) (varE '(==)) lit) (varE rest)
 			[e| error "bad value" |]
 binToField size (Variable var) = do
@@ -89,7 +89,7 @@ binToField size (Variable var) = do
 	put $ varE bin'
 	liftW $ tell [(var, VarE tmp)]
 	liftQ $ valD (tupP [varP tmp, varP bin'])
-		(normalB $ appsE [varE 'fromBitsBinary, size, bin]) []
+		(normalB $ appsE [varE 'fromBits, size, bin]) []
 
 writing :: String -> [BSItem] -> ClauseQ
 writing argn items = do
@@ -106,9 +106,9 @@ writing argn items = do
 
 fieldToBin :: Name -> ExpQ -> Value -> ExpQ
 fieldToBin _ size (Constant val) =
-    varE 'consToBitsBinary `appE` size `appE` either
+    varE 'consToBits `appE` size `appE` either
 	((`sigE` conT ''Integer) . litE . integerL)
 	((`sigE` conT ''BSLC.ByteString) . appE (varE 'BSLC.pack) . litE . stringL)
 	val
 fieldToBin dat size (Variable val) =
-	varE 'consToBitsBinary `appE` size `appE` (varE val `appE` varE dat)
+	varE 'consToBits `appE` size `appE` (varE val `appE` varE dat)

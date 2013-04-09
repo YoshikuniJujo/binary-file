@@ -5,6 +5,10 @@
 	let ... in ... を許すべきかどうか考える
 	必要かどうかが問題だ
 5. 以下の refactoring
+	File.Binary.Classes
+	File.Binary.Parse
+	File.Binary.Quote
+	File.Binary
 	File.Binary.Instances
 	File.Binary.Instances.BigEndian
 	File.Binary.Instances.LittleEndian
@@ -12,8 +16,9 @@
 	examples/readBitmap.hs
 	examples/readHex.hs
 	examples/tiny.hs
-	File.Binary.Parse
-	File.Binary.Quote
+	examples/bits.hs
+	examples/bitsb.hs
+	examples/bitslb.hs
 6. field の値が正しくなかった場合に error を出して終了する仕様を直す
 	あるいは error のままにするほうが良いかもしれない
 	error のままであったとしても exception を選ぶべきか考える

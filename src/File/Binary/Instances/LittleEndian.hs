@@ -22,9 +22,9 @@ instance Field Integer where
 
 instance Field Bool where
 	type FieldArgument Bool = ()
-	fromBitsBinary () ([], bin) = fromBitsBinary () $ binToBools bin
-	fromBitsBinary () (b : bs, bin) = (b, (bs, bin))
-	consToBitsBinary () b (bs, bin)
+	fromBits () ([], bin) = fromBits () $ binToBools bin
+	fromBits () (b : bs, bin) = (b, (bs, bin))
+	consToBits () b (bs, bin)
 		| length bs == 7 = ([], (b : bs) `appendBools` bin)
 		| otherwise = (b : bs, bin)
 
@@ -32,14 +32,14 @@ data BitsInt = BitsInt { bitsInt :: Int } deriving Show
 
 instance Field BitsInt where
 	type FieldArgument BitsInt = Int
-	fromBitsBinary 0 bb = (BitsInt 0, bb)
-	fromBitsBinary n ([], bin) = fromBitsBinary n $ binToBools bin
-	fromBitsBinary n (b : bs, bin) = let
-		(BitsInt ret, rest) = fromBitsBinary (n - 1) (bs, bin) in
+	fromBits 0 bb = (BitsInt 0, bb)
+	fromBits n ([], bin) = fromBits n $ binToBools bin
+	fromBits n (b : bs, bin) = let
+		(BitsInt ret, rest) = fromBits (n - 1) (bs, bin) in
 		(BitsInt $ fromEnum b .|. ret `shiftL` 1, rest)
-	consToBitsBinary 0 _ bb = bb
-	consToBitsBinary n (BitsInt f) bb = let
-		(bs', bin') = consToBitsBinary (n - 1) (BitsInt $ f `shiftR` 1) bb in
+	consToBits 0 _ bb = bb
+	consToBits n (BitsInt f) bb = let
+		(bs', bin') = consToBits (n - 1) (BitsInt $ f `shiftR` 1) bb in
 		if length bs' == 7
 			then ([], (toEnum (f .&. 1) : bs') `appendBools` bin')
 			else (toEnum (f .&. 1) : bs', bin')

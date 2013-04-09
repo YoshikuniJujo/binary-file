@@ -1,33 +1,31 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies, TupleSections #-}
 
-module File.Binary.Classes (Field(..), Binary(..), BitsBinary) where
+module File.Binary.Classes (Field(..), Binary(..)) where
 
-import Data.Monoid
 import Data.ByteString.Lazy (ByteString)
+import Data.Monoid (Monoid, mappend, mempty)
+import Control.Arrow (second)
 
-type BitsBinary b = ([Bool], b)
+type AddBits b = ([Bool], b)
 
-class Field r where
-	type FieldArgument r
-	fromBinary :: Binary s => FieldArgument r -> s -> (r, s)
-	toBinary :: Binary s => FieldArgument r -> r -> s
-	fromBitsBinary :: Binary s =>
-		FieldArgument r -> BitsBinary s -> (r, BitsBinary s)
-	consToBitsBinary :: Binary s =>
-		FieldArgument r -> r -> BitsBinary s -> BitsBinary s
+class Field f where
+	type FieldArgument f
+	fromBinary :: Binary b => FieldArgument f -> b -> (f, b)
+	toBinary :: Binary b => FieldArgument f -> f -> b
+	fromBits :: Binary b => FieldArgument f -> AddBits b -> (f, AddBits b)
+	consToBits :: Binary b => FieldArgument f -> f -> AddBits b -> AddBits b
 
-	fromBitsBinary a ([], b) = let (f, rest) = fromBinary a b in
-		(f, ([], rest))
-	fromBitsBinary _ _ = error "fromBitsBinary: not 8 bits"
-	consToBitsBinary a f ([], b) = ([], toBinary a f `mappend` b)
-	consToBitsBinary _ _ _ = error "consToBitsBinary: not 8 bits"
+	fromBits a ([], b) = second ([] ,) $ fromBinary a b
+	fromBits _ _ = error "fromBits: not bytes (1 byte = 8 bits)"
+	consToBits a f ([], b) = ([], toBinary a f `mappend` b)
+	consToBits _ _ _ = error "consToBits: not bytes (1 byte = 8 bits)"
 
-	fromBinary a b = case fromBitsBinary a ([], b) of
+	fromBinary a b = case fromBits a ([], b) of
 		(f, ([], rest)) -> (f, rest)
-		_ -> error "fromBinary: not 8 bits"
-	toBinary a f = case consToBitsBinary a f ([], mempty) of
+		_ -> error "fromBinary: not bytes (1 byte = 8 bits)"
+	toBinary a f = case consToBits a f ([], mempty) of
 		([], bin) -> bin
-		_ -> error "toBinary: not 8 bits"
+		_ -> error "toBinary: not bytes (1 byte = 8 bits)"
 
 class (Eq b, Monoid b) => Binary b where
 	getBytes :: Int -> b -> (ByteString, b)

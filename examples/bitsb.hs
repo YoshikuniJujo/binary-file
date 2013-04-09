@@ -8,7 +8,7 @@ main = do
 	let (bits :: Bits, rest) = fromBinary () "hello"
 	print bits
 	print rest
-	print (consToBitsBinary () bits ([], "") :: ([Bool], String))
+	print (consToBits () bits ([], "") :: ([Bool], String))
 	print (toBinary () bits :: String)
 
 [binary|
