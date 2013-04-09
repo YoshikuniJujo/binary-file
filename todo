@@ -5,7 +5,6 @@
 	let ... in ... を許すべきかどうか考える
 	必要かどうかが問題だ
 5. 以下の refactoring
-	File.Binary
 	File.Binary.Instances
 	File.Binary.Instances.BigEndian
 	File.Binary.Instances.LittleEndian

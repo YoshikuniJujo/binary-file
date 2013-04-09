@@ -1,9 +1,6 @@
 module File.Binary (
-	Field(..),
-	Binary(..),
-	binary,
-	readBinaryFile,
-	writeBinaryFile
+	Field(..), Binary(..), binary,
+	readBinaryFile, writeBinaryFile
  ) where
 
 import File.Binary.Quote (Field(..), Binary(..), binary)
@@ -13,4 +10,4 @@ readBinaryFile :: FilePath -> IO String
 readBinaryFile path = openBinaryFile path ReadMode >>= hGetContents
 
 writeBinaryFile :: FilePath -> String -> IO ()
-writeBinaryFile f txt = withBinaryFile f WriteMode $ \hdl -> hPutStr hdl txt
+writeBinaryFile f = withBinaryFile f WriteMode . flip hPutStr
