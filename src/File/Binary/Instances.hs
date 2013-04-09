@@ -1,81 +1,61 @@
-{-# LANGUAGE
-	TypeFamilies,
-	TypeSynonymInstances,
-	FlexibleInstances #-}
+{-# LANGUAGE TypeFamilies, TypeSynonymInstances, FlexibleInstances, PackageImports #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module File.Binary.Instances () where
 
+import Prelude hiding (take, drop)
 import File.Binary.Classes (Field(..), Binary(..))
-import qualified Data.ByteString as BS
-	(ByteString, take, drop, concat)
-import qualified Data.ByteString.Lazy as BSL
-	(ByteString, take, drop, toChunks, fromChunks)
-import qualified Data.ByteString.Lazy.Char8 as BSLC (pack, unpack)
+import Data.ByteString.Lazy (ByteString, take, drop, toChunks, fromChunks)
+import Data.ByteString.Lazy.Char8 (pack, unpack)
+import qualified Data.ByteString as BS (ByteString, take, drop, concat)
+import "monads-tf" Control.Monad.State (StateT(..), runState, gets)
+import "monads-tf" Control.Monad.Identity (Identity(..))
+import Control.Applicative ((<$>), (<*>))
 import Control.Arrow (first, (&&&))
-import Data.Monoid
+import Data.Monoid (mempty)
 
-instance Field BSL.ByteString where
-	type FieldArgument BSL.ByteString = Int
+--------------------------------------------------------------------------------
+
+instance Field ByteString where
+	type FieldArgument ByteString = Int
 	fromBinary = getBytes
 	toBinary _ = makeBinary
 
 instance Field BS.ByteString where
 	type FieldArgument BS.ByteString = Int
-	fromBinary n str =
-		first (BS.concat . BSL.toChunks) $ getBytes n str
-	toBinary _ = makeBinary . BSL.fromChunks . (: [])
+	fromBinary n = first (BS.concat . toChunks) . getBytes n
+	toBinary _ = makeBinary . fromChunks . (: [])
 
 instance Field Char where
 	type FieldArgument Char = ()
-	fromBinary _ str = (head $ BSLC.unpack t, d)
-		where
-		(t, d) = getBytes 1 str
-	toBinary _ = makeBinary . BSLC.pack . (: [])
+	fromBinary _ = first (head . unpack) . getBytes 1
+	toBinary _ = makeBinary . pack . (: [])
 
 instance Field r => Field [r] where
 	type FieldArgument [r] = (FieldArgument r, Maybe Int)
-	fromBits (a, Just b) s = (b `times` fromBits a) s
-	fromBits (a, Nothing) s = whole mempty (fromBits a) s
-	consToBits (a, _) rs bin = foldr (consToBits a) bin rs
+	fromBits (a, Just b) = b `times` fromBits a
+	fromBits (a, Nothing) = mempty `whole` fromBits a
+	consToBits (a, _) = flip $ foldr $ consToBits a
 
 times :: Int -> (s -> (ret, s)) -> s -> ([ret], s)
-times 0 _ s = ([], s)
-times n f s = let
-	(ret, rest) = f s
-	(rets, rest') = times (n - 1) f rest in
-	(ret : rets, rest')
+times n f = runState $ sequence $ replicate n (StateT $ Identity . f)
 
 whole :: Eq s => s -> (s -> (ret, s)) -> s -> ([ret], s)
-whole emp f s
-	| s == emp = ([], s)
-	| otherwise = let
-		(ret, rest) = f s
-		(rets, rest') = whole emp f rest in
-		(ret : rets, rest')
+whole e f = runState $ do
+	emp <- gets (== e)
+	if emp then return [] else
+		(:) <$> (StateT $ Identity . f) <*> (StateT $ Identity . whole e f)
 
 --------------------------------------------------------------------------------
 
 instance Binary String where
-	getBytes n = BSLC.pack . take n &&& drop n
-	makeBinary = BSLC.unpack
+	getBytes n = first pack . splitAt n
+	makeBinary = unpack
 
-instance Binary BSL.ByteString where
-	getBytes n = BSL.take (fromIntegral n) &&& BSL.drop (fromIntegral n)
+instance Binary ByteString where
+	getBytes n = take (fromIntegral n) &&& drop (fromIntegral n)
 	makeBinary = id
 
-{-
-	appendBinary = BSL.append
-	concatBinary = BSL.concat
-	emptyBinary = (== 0) . BSL.length
--}
-
 instance Binary BS.ByteString where
-	getBytes n = BSL.fromChunks . (: []) . BS.take n &&& BS.drop n
-	makeBinary = BS.concat . BSL.toChunks
-
-{-
-	appendBinary = BS.append
-	concatBinary = BS.concat
-	emptyBinary = (== 0) . BS.length
--}
+	getBytes n = fromChunks . (: []) . BS.take n &&& BS.drop n
+	makeBinary = BS.concat . toChunks
