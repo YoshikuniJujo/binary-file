@@ -8,6 +8,7 @@ import File.Binary.Classes (Field(..), Binary(..))
 import Data.ByteString.Lazy (ByteString, take, drop, toChunks, fromChunks)
 import Data.ByteString.Lazy.Char8 (pack, unpack)
 import qualified Data.ByteString as BS (ByteString, take, drop, concat)
+import Control.Monad (replicateM)
 import "monads-tf" Control.Monad.State (StateT(..), runState, gets)
 import "monads-tf" Control.Monad.Identity (Identity(..))
 import Control.Applicative ((<$>), (<*>))
@@ -38,7 +39,7 @@ instance Field r => Field [r] where
 	consToBits (a, _) = flip $ foldr $ consToBits a
 
 times :: Int -> (s -> (ret, s)) -> s -> ([ret], s)
-times n f = runState $ sequence $ replicate n (StateT $ Identity . f)
+times n f = runState $ replicateM n (StateT $ Identity . f)
 
 whole :: Eq s => s -> (s -> (ret, s)) -> s -> ([ret], s)
 whole e f = runState $ do

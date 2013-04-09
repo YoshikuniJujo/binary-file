@@ -3,7 +3,7 @@
 
 import File.Binary
 import File.Binary.Instances()
-import File.Binary.Instances.BigEndian
+import File.Binary.Instances.BigEndian()
 import System.Environment
 import Data.Word
 import qualified Data.ByteString as BS
@@ -92,6 +92,13 @@ instance Field Word32 where
 	fromBinary n s = (fromIntegral $ toIntgr $ BSL.reverse t, d)
 		where
 		(t, d) = getBytes n s
+
+intToWords :: Integral i => Int -> i -> [Word8]
+intToWords = itw []
+	where
+	itw result 0 _ = result
+	itw result n i =
+		itw (fromIntegral (i `mod` 256) : result) (n - 1) (i `div` 256)
 
 toIntgr :: BSL.ByteString -> Integer
 toIntgr = mkNum . map fromIntegral . BSL.unpack

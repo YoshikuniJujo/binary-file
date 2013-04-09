@@ -1,10 +1,11 @@
 {-# LANGUAGE TypeFamilies, TupleSections #-}
 
-module File.Binary.Classes (Field(..), Binary(..)) where
+module File.Binary.Classes (Field(..), Binary(..), pop, push) where
 
-import Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy (ByteString, unpack, singleton)
+import Data.Bits ((.&.), (.|.), shiftL, shiftR)
 import Data.Monoid (Monoid, mappend, mempty)
-import Control.Arrow (second)
+import Control.Arrow (first, second)
 
 type AddBits b = ([Bool], b)
 
@@ -26,6 +27,17 @@ class Field f where
 	toBinary a f = case consToBits a f ([], mempty) of
 		([], bin) -> bin
 		_ -> error "toBinary: not bytes (1 byte = 8 bits)"
+
+pop :: Binary b => b -> AddBits b
+pop = first (wtbs (8 :: Int) . head . unpack) . getBytes 1
+	where
+	wtbs 0 _ = []
+	wtbs n w = toEnum (fromIntegral $ 1 .&. w) : wtbs (n - 1) (w `shiftR` 1)
+
+push :: Binary b => AddBits b -> b
+push = uncurry $ mappend . makeBinary . singleton . bstw
+	where
+	bstw = foldr (\b w -> w `shiftL` 1 .|. fromIntegral (fromEnum b)) 0
 
 class (Eq b, Monoid b) => Binary b where
 	getBytes :: Int -> b -> (ByteString, b)
