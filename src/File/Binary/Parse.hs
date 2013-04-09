@@ -8,7 +8,7 @@
 
 module File.Binary.Parse (
 	parse, Structure, sName, sDerive, sArgName, sArgType, sItems,
-	BSItem, argOf, valueOf, typeOf, Value(..), Expression, expression,
+	BSItem, argOf, valueOf, Value, Expression, expression
 ) where
 
 import Text.Peggy (peggy, parseString, space, defaultDelimiter)
@@ -17,6 +17,7 @@ import Language.Haskell.TH (
 	TypeQ, conT, appT, listT, tupleT, Name, mkName)
 import "monads-tf" Control.Monad.Reader (Reader, runReader, ask)
 import Control.Applicative ((<$>), (<*>))
+import Control.Arrow(second)
 import Data.Maybe (fromMaybe)
 import Numeric (readHex)
 
@@ -32,13 +33,13 @@ data Structure = Structure {
 	sArgType :: TypeQ,
 	sItems :: [BSItem] }
 
-data BSItem = BSItem { argOf :: Expression, typeOf :: TypeQ, valueOf :: Value }
+data BSItem = BSItem { argOf :: Expression, valueOf :: Value }
 type Expression	= Reader (ExpQ, ExpQ, String) ExpQ
 
 expression :: ExpQ -> ExpQ -> String -> Expression -> ExpQ
 expression ret arg argn e = runReader e (ret, arg, argn)
 
-data Value = Constant (Either Integer String) | Variable Name
+type Value = Either (Either Integer String) (Name, TypeQ)
 
 identify :: String -> (ExpQ, ExpQ, String) -> ExpQ
 identify var (ret, arg, argn)
@@ -61,14 +62,15 @@ arg :: (String, TypeQ)
 	/ ''				{ ("_", conT $ mkName "()") }
 
 dat :: BSItem = emp ex? sp typS sp ':' sp val
-	{ BSItem (fromMaybe (return $ conE $ mkName "()") $2) $4 $7 }
+	{ BSItem (fromMaybe (return $ conE $ mkName "()") $2) $
+		either Left (Right . second (const $4)) $7 }
 
 typS :: TypeQ = '{' typ '}' / ''	{ conT $ mkName "Int" }
 
 val :: Value
-	= var				{ Variable $ mkName $1 }
-	/ num				{ Constant $ Left $1 }
-	/ string			{ Constant $ Right $1 }
+	= var				{ Right $ (mkName $1, conT $ mkName "()") }
+	/ num				{ Left $ Left $1 }
+	/ string			{ Left $ Right $1 }
 
 ex :: Expression
 	= ex sp op sp exOp1		{ uInfixE <$> $1 <*> $3 <*> $5 }
