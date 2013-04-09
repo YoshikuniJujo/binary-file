@@ -5,8 +5,6 @@
 	let ... in ... を許すべきかどうか考える
 	必要かどうかが問題だ
 5. 以下の refactoring
-	File.Binary.Classes
-	File.Binary.Parse
 	File.Binary.Quote
 	File.Binary
 	File.Binary.Instances

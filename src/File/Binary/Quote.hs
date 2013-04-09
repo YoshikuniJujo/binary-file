@@ -3,7 +3,7 @@
 module File.Binary.Quote (Field(..), Binary(..), binary) where
 
 import Language.Haskell.TH (
-	Q, DecsQ, ClauseQ, ExpQ, Dec, Exp(..), Name, FieldExp,
+	Q, DecsQ, ClauseQ, ExpQ, TypeQ, Dec, Exp(..), Name, FieldExp,
 	dataD, recC, varStrictType, strictType, notStrict,
 	instanceD, funD, clause, normalB, valD, tySynInstD, cxt,
 	conT, appT, sigE, varP, tupP, letE, condE, recConE, tupE, listE,
@@ -16,9 +16,10 @@ import Control.Applicative ((<$>), (<*>))
 import qualified Data.ByteString.Lazy.Char8 as BSLC (ByteString, pack)
 
 import File.Binary.Parse (
-	parse, BinaryStructure, bsName, bsDerive, bsArgName, bsArgType, bsItem,
-	BSItem, argOf, valueOf, Value(..), variables, expression)
+	parse, Structure, sName, sDerive, sArgName, sArgType, sItems,
+	BSItem, argOf, valueOf, Value(..), typeOf, expression)
 import File.Binary.Classes (Field(..), Binary(..))
+import Data.Maybe (mapMaybe)
 
 --------------------------------------------------------------------------------
 
@@ -28,16 +29,21 @@ binary = QuasiQuoter {
 	quoteDec = top . parse
  }
 
-top :: BinaryStructure -> DecsQ
-top bs = let c = bsName bs in (\d i -> [d, i])
+top :: Structure -> DecsQ
+top bs = let c = sName bs in (\d i -> [d, i])
 	<$> dataD (cxt []) c [] [recC c $
 		map (varStrictType <$> fst <*> strictType notStrict . snd) $
-			variables $ bsItem bs] (bsDerive bs)
+			variables $ sItems bs] (sDerive bs)
 	<*> instanceD (cxt []) (appT (conT ''Field) (conT c)) [
-		tySynInstD ''FieldArgument [conT c] $ bsArgType bs,
-		funD 'fromBits $ (: []) $ reading c (bsArgName bs) (bsItem bs),
-		funD 'consToBits $ (: []) $ writing (bsArgName bs) (bsItem bs)
+		tySynInstD ''FieldArgument [conT c] $ sArgType bs,
+		funD 'fromBits $ (: []) $ reading c (sArgName bs) (sItems bs),
+		funD 'consToBits $ (: []) $ writing (sArgName bs) (sItems bs)
 	 ]
+
+variables :: [BSItem] -> [(Name, TypeQ)]
+variables = mapMaybe $ \bsi -> case valueOf bsi of
+	Variable var -> Just (var, typeOf bsi)
+	_ -> Nothing
 
 reading :: Name -> String -> [BSItem] -> ClauseQ
 reading con argn items = do
