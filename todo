@@ -4,9 +4,8 @@
 4. expression で if ... then ... else ... や \... -> ... や case ... of ... や
 	let ... in ... を許すべきかどうか考える
 	必要かどうかが問題だ
-5. 以下の refactoring
-	examples/CRC.hs
-6. field の値が正しくなかった場合に error を出して終了する仕様を直す
+5. field の値が正しくなかった場合に error を出して終了する仕様を直す
 	あるいは error のままにするほうが良いかもしれない
 	error のままであったとしても exception を選ぶべきか考える
-7. homepage の作成
+6. homepage の作成
+7. examples/CRC.hs を理解する
