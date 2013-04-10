@@ -1,21 +1,30 @@
-{-# LANGUAGE QuasiQuotes, TypeFamilies, FlexibleInstances #-}
+{-# LANGUAGE QuasiQuotes, TypeFamilies, FlexibleInstances, ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-import File.Binary
-import File.Binary.Instances.LittleEndian()
-import File.Binary.Instances()
-import System.Environment
-import qualified Data.ByteString.Lazy as BSL
-import Data.Monoid
+import File.Binary (binary, Field(..), Binary(..), readBinaryFile, writeBinaryFile)
+import File.Binary.Instances.LittleEndian ()
+import File.Binary.Instances ()
+import Data.ByteString.Lazy (singleton)
+import Data.Monoid (mconcat)
+import Control.Applicative ((<$>))
+import System.Environment (getArgs)
+
+--------------------------------------------------------------------------------
 
 main :: IO ()
 main = do
-	[inf] <- getArgs
-	cnt <- readBinaryFile inf
-	let (bmp, rest) = fromBinary () cnt :: (Bitmap, String)
-	print bmp
-	print $ colors bmp
-	print rest
+	[inf, outf] <- getArgs
+	bmp <- readBitmap inf
+	putStrLn $ take 1000 (show bmp) ++ "..."
+	writeBitmap outf bmp
+
+readBitmap :: FilePath -> IO Bitmap
+readBitmap fp = do
+	(bmp, "") <- fromBinary () <$> readBinaryFile fp
+	return bmp
+
+writeBitmap :: FilePath -> Bitmap -> IO ()
+writeBitmap fp = writeBinaryFile fp . toBinary ()
 
 instance Field (Int, Int, Int) where
 	type FieldArgument (Int, Int, Int) = ()
@@ -28,7 +37,7 @@ instance Field (Int, Int, Int) where
 		toBinary 1 b,
 		toBinary 1 g,
 		toBinary 1 r,
-		makeBinary $ BSL.singleton 0
+		makeBinary $ singleton 0
 	 ]
 
 [binary|
