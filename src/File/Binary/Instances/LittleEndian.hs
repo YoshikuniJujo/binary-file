@@ -1,31 +1,37 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module File.Binary.Instances.LittleEndian where
+module File.Binary.Instances.LittleEndian (BitsInt) where
 
-import File.Binary.Classes
-import qualified Data.ByteString.Lazy as BSL
-import Data.Word
-import Control.Arrow
-import Data.Bits
-import Data.Monoid
+import File.Binary.Classes (Field(..), Binary(..), pop, push)
+import Data.ByteString.Lazy (pack, unpack)
+import Data.Word (Word8)
+import Data.Bits (Bits, (.&.), (.|.), shiftL, shiftR)
+import Control.Arrow (first)
 
 instance Field Int where
 	type FieldArgument Int = Int
-	fromBinary n = first (wordsToInt . BSL.unpack) . getBytes n
-	toBinary n = makeBinary . BSL.pack . intToWords n
+	fromBinary n = first (wordsToInt . unpack) . getBytes n
+	toBinary n = makeBinary . pack . intToWords n
 
 instance Field Integer where
 	type FieldArgument Integer = Int
-	fromBinary n = first (wordsToInt . BSL.unpack) . getBytes n
-	toBinary n = makeBinary . BSL.pack . intToWords n
+	fromBinary n = first (wordsToInt . unpack) . getBytes n
+	toBinary n = makeBinary . pack . intToWords n
+
+wordsToInt :: Bits i => [Word8] -> i
+wordsToInt = foldr (\w i -> fromIntegral w .|. i `shiftL` 8) 0
+
+intToWords :: (Bits i, Integral i) => Int -> i -> [Word8]
+intToWords 0 _ = []
+intToWords n i = fromIntegral (i .&. 0xff) : intToWords (n - 1) (i `shiftR` 8)
 
 instance Field Bool where
 	type FieldArgument Bool = ()
-	fromBits () ([], bin) = fromBits () $ binToBools bin
+	fromBits () ([], bin) = fromBits () $ pop bin
 	fromBits () (b : bs, bin) = (b, (bs, bin))
 	consToBits () b (bs, bin)
-		| length bs == 7 = ([], (b : bs) `appendBools` bin)
+		| length bs == 7 = ([], push ((b : bs), bin))
 		| otherwise = (b : bs, bin)
 
 data BitsInt = BitsInt { bitsInt :: Int } deriving Show
@@ -33,31 +39,12 @@ data BitsInt = BitsInt { bitsInt :: Int } deriving Show
 instance Field BitsInt where
 	type FieldArgument BitsInt = Int
 	fromBits 0 bb = (BitsInt 0, bb)
-	fromBits n ([], bin) = fromBits n $ binToBools bin
-	fromBits n (b : bs, bin) = let
-		(BitsInt ret, rest) = fromBits (n - 1) (bs, bin) in
-		(BitsInt $ fromEnum b .|. ret `shiftL` 1, rest)
+	fromBits n ([], bin) = fromBits n $ pop bin
+	fromBits n (b : bs, bin) = flip first (fromBits (n - 1) (bs, bin)) $
+		BitsInt . (fromEnum b .|.) . (`shiftL` 1) . bitsInt
 	consToBits 0 _ bb = bb
 	consToBits n (BitsInt f) bb = let
-		(bs', bin') = consToBits (n - 1) (BitsInt $ f `shiftR` 1) bb in
-		if length bs' == 7
-			then ([], (toEnum (f .&. 1) : bs') `appendBools` bin')
-			else (toEnum (f .&. 1) : bs', bin')
-
-wordsToInt :: Integral i => [Word8] -> i
-wordsToInt = foldr (\w i -> fromIntegral w + 256 * i) 0
-
-intToWords :: Integral i => Int -> i -> [Word8]
-intToWords 0 _ = []
-intToWords n i = fromIntegral (i `mod` 256) : intToWords (n - 1) (i `div` 256)
-
-binToBools :: Binary b => b -> ([Bool], b)
-binToBools = first (wtbs (8 :: Int) . head . BSL.unpack) . getBytes 1
-	where
-	wtbs 0 _ = []
-	wtbs n w = toEnum (fromIntegral $ 1 .&. w) : wtbs (n - 1) (w `shiftR` 1)
-
-appendBools :: Binary b => [Bool] -> b -> b
-appendBools bs = mappend $ makeBinary (BSL.singleton $ bstw bs)
-	where
-	bstw = foldr (\b w -> w `shiftL` 1 .|. fromIntegral (fromEnum b)) 0
+		(bs, bin) = consToBits (n - 1) (BitsInt $ f `shiftR` 1) bb in
+		if length bs == 7
+			then ([], push (toEnum (f .&. 1) : bs, bin))
+			else (toEnum (f .&. 1) : bs, bin)

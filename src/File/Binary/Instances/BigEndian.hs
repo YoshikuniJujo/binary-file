@@ -4,10 +4,9 @@
 module File.Binary.Instances.BigEndian (BitsInt) where
 
 import File.Binary.Classes (Field(..), Binary(..), pop, push)
-import Data.ByteString.Lazy (pack, unpack, singleton)
+import Data.ByteString.Lazy (pack, unpack)
 import Data.Word (Word8)
 import Data.Bits (Bits, (.&.), (.|.), shiftL, shiftR)
-import Data.Monoid (mappend)
 import Control.Arrow (first)
 
 --------------------------------------------------------------------------------
