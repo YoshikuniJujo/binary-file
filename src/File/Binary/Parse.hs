@@ -8,7 +8,7 @@
 
 module File.Binary.Parse (
 	parse, Structure, sName, sDerive, sArgName, sArgType, sItems,
-	SItem, argOf, valueOf, Value, expression
+	SItem, argOf, valueOf, constant, Value, expression
 ) where
 
 import Text.Peggy (peggy, parseString, space, defaultDelimiter)
@@ -39,7 +39,14 @@ type Expression	= Reader (ExpQ, ExpQ, String) ExpQ
 expression :: ExpQ -> ExpQ -> String -> Expression -> ExpQ
 expression ret arg argn e = runReader e (ret, arg, argn)
 
-type Value = Either (Either Integer String) (Name, TypeQ)
+type Value = Either Constant (Name, TypeQ)
+
+data Constant = Integer Integer | String String | Bool Bool deriving Show
+
+constant :: (Integer -> a) -> (String -> a) -> (Bool -> a) -> Constant -> a
+constant f _ _ (Integer i) = f i
+constant _ f _ (String s) = f s
+constant _ _ f (Bool b) = f b
 
 identify :: String -> (ExpQ, ExpQ, String) -> ExpQ
 identify var (ret, arg, argn)
@@ -69,8 +76,10 @@ typS :: TypeQ = '{' typ '}' / ''	{ conT $ mkName "Int" }
 
 val :: Value
 	= var				{ Right $ (mkName $1, conT $ mkName "()") }
-	/ num				{ Left $ Left $1 }
-	/ string			{ Left $ Right $1 }
+	/ num				{ Left $ Integer $1 }
+	/ string			{ Left $ String $1 }
+	/ 'True'			{ Left $ Bool True }
+	/ 'False'			{ Left $ Bool False }
 
 ex :: Expression
 	= ex sp op sp exOp1		{ uInfixE <$> $1 <*> $3 <*> $5 }

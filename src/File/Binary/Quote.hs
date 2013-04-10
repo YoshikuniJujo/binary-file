@@ -4,14 +4,14 @@ module File.Binary.Quote (Field(..), Binary(..), binary) where
 
 import File.Binary.Parse (
 	parse, Structure, sName, sDerive, sArgName, sArgType, sItems,
-	SItem, argOf, valueOf, Value, expression)
+	SItem, argOf, valueOf, constant, Value, expression)
 import File.Binary.Classes (Field(..), Binary(..))
 import Language.Haskell.TH (
 	Q, DecsQ, ClauseQ, BodyQ, ExpQ, Dec, Exp(..), Name, FieldExp,
 	dataD, recC, varStrictType, strictType, notStrict,
 	instanceD, funD, clause, normalB, valD, tySynInstD, cxt,
 	conT, appT, sigE, varP, tupP, letE, condE, recConE, tupE, listE,
-	appE, appsE, infixApp, varE, litE, newName, integerL, stringL)
+	appE, appsE, infixApp, varE, conE, litE, newName, integerL, stringL)
 import Language.Haskell.TH.Quote (QuasiQuoter(..))
 import Data.ByteString.Lazy.Char8 (pack)
 import Control.Monad (zipWithM)
@@ -69,9 +69,11 @@ readf size (Left val) = do
 	bin <- get
 	[rv, rest, bin'] <- liftQ $ mapM newName ["rv", "rst", "bin'"]
 	put $ varE bin'
-	let lit = either
+	let lit = constant
 		((`sigE` conT ''Integer) . litE . integerL)
-		(appE (varE 'pack) . litE . stringL) val
+		(appE (varE 'pack) . litE . stringL)
+		(\b -> if b then conE 'True else conE 'False)
+		val
 	liftQ $ flip (valD $ varP bin') [] $ normalB $
 		letE [flip (valD $ tupP [varP rv, varP rest]) [] $ normalB $
 			appsE [varE 'fromBits, size, bin]] $
@@ -95,8 +97,10 @@ writing argn items = do
 				<*> valueOf
 
 writef :: Name -> ExpQ -> Value -> ExpQ
-writef _ size (Left val) = varE 'consToBits `appE` size `appE` either
+writef _ size (Left val) = varE 'consToBits `appE` size `appE` constant
 	((`sigE` conT ''Integer) . litE . integerL)
-	(appE (varE 'pack) . litE . stringL) val
+	(appE (varE 'pack) . litE . stringL)
+	(\b -> if b then conE 'True else conE 'False)
+	val
 writef dat size (Right (rec, _)) =
 	varE 'consToBits `appE` size `appE` (varE rec `appE` varE dat)
