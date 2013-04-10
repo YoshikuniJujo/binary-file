@@ -5,8 +5,6 @@
 	let ... in ... を許すべきかどうか考える
 	必要かどうかが問題だ
 5. 以下の refactoring
-	File.Binary.Instances.LittleEndian
-	examples/readPNG.hs
 	examples/readBitmap.hs
 	examples/readHex.hs
 	examples/tiny.hs

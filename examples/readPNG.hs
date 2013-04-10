@@ -1,66 +1,75 @@
-{-# LANGUAGE QuasiQuotes, TypeFamilies, FlexibleInstances #-}
+{-# LANGUAGE QuasiQuotes, TypeFamilies, FlexibleInstances, OverloadedStrings #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-import File.Binary
-import File.Binary.Instances()
-import File.Binary.Instances.BigEndian()
-import System.Environment
-import Data.Word
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BSC
-import qualified Data.ByteString.Lazy as BSL
-import Codec.Compression.Zlib
+import Prelude hiding (concat)
+import File.Binary (binary, Field(..), Binary(..))
+import File.Binary.Instances ()
+import File.Binary.Instances.BigEndian ()
 import CRC (crc)
-import Control.Applicative
-import Data.Monoid
+import Codec.Compression.Zlib (
+	decompress, compressWith, defaultCompressParams, CompressParams(..),
+	bestCompression, WindowBits(..))
+import qualified Data.ByteString as BS (ByteString, length, readFile, writeFile)
+import qualified Data.ByteString.Char8 as BSC (unpack)
+import Data.ByteString.Lazy
+	(ByteString, pack, unpack, concat, toChunks, fromChunks)
+import Data.Word (Word8, Word32)
+import Data.Bits (Bits, (.&.), (.|.), shiftL, shiftR)
+import Data.Monoid (mconcat)
+import Control.Applicative ((<$>))
+import Control.Arrow(first)
+import System.Environment (getArgs)
+
+--------------------------------------------------------------------------------
 
 main :: IO ()
 main = do
 	[fin, fout] <- getArgs
-	cnt <- BS.readFile fin
-	let (png, _) = fromBinary () cnt
+	png <- readPNG fin
 
-	putStrLn $ take 1000 (show png) ++ "..."
+	putStrLn $ take 800 (show png) ++ "..."
 
-	let	dat = makeData png
+	let	dat = concatIDATs $ body png
 		decomp = decompress dat
 		recomp = compressWith defaultCompressParams {
 			compressLevel = bestCompression,
 			compressWindowBits = WindowBits 10
 		 } decomp
-		newData = makeDataChank recomp
-		newnew = png {
-			chanks = headerChanks png ++ newData ++
-				footerChanks png
-		 }
-	BS.writeFile fout $ toBinary () newnew
-	print $ dat == recomp
+		newIDAT = map makeIDAT $ toChunks recomp
+		new = png { chunks = header png ++ newIDAT ++ footer png }
+	writePNG fout new
 
-headerChanks :: PNG -> [Chank]
-headerChanks PNG{ chanks = cs } =
-	filter ((`notElem` ["IEND", "IDAT"]) . chankName) cs
+	putStrLn ""
+	putStrLn $ take 800 (show new) ++ "..."
 
-footerChanks :: PNG -> [Chank]
-footerChanks PNG{ chanks = cs } = filter ((== "IEND") . chankName) cs
+readPNG :: FilePath -> IO PNG
+readPNG fp = do
+	(png, "") <- fromBinary () <$> BS.readFile fp
+	return png
 
-makeData :: PNG -> BSL.ByteString
-makeData PNG{ chanks = cs } =
-	BSL.concat $ map (idat . cidat . chankData) $
-		filter ((== "IDAT") . chankName) cs
+writePNG :: FilePath -> PNG -> IO ()
+writePNG fout = BS.writeFile fout . toBinary ()
 
-makeDataChank :: BSL.ByteString -> [Chank]
-makeDataChank = map makeOneDataChank . BSL.toChunks
+header :: PNG -> [Chunk]
+header PNG{ chunks = cs } =
+	filter ((`notElem` ["IEND", "IDAT"]) . chunkName) cs
 
-makeOneDataChank :: BS.ByteString -> Chank
-makeOneDataChank bs = Chank {
-	chankSize = fromIntegral $ BS.length bs,
-	chankName = "IDAT",
-	chankData = ChankIDAT $ IDAT $ BSL.fromChunks [bs],
-	chankCRC = crc $ "IDAT" ++ BSC.unpack bs
- }
+body :: PNG -> [IDAT]
+body PNG { chunks = cs } =
+	map (cidat . chunkData) $ filter ((== "IDAT") . chunkName) cs
 
-test :: IO PNG
-test = fst . fromBinary () <$> readBinaryFile "tmp/sample.png"
+footer :: PNG -> [Chunk]
+footer PNG{ chunks = cs } = filter ((== "IEND") . chunkName) cs
+
+concatIDATs :: [IDAT] -> ByteString
+concatIDATs = concat . map idat
+
+makeIDAT :: BS.ByteString -> Chunk
+makeIDAT bs = Chunk {
+	chunkSize = fromIntegral $ BS.length bs,
+	chunkName = "IDAT",
+	chunkData = ChunkIDAT $ IDAT $ fromChunks [bs],
+	chunkCRC = crc $ "IDAT" ++ BSC.unpack bs }
 
 [binary|
 
@@ -71,87 +80,70 @@ PNG deriving Show
 2: "\r\n"
 1: "\SUB"
 1: "\n"
-((), Nothing){[Chank]}: chanks
+((), Nothing){[Chunk]}: chunks
 
 |]
 
 [binary|
 
-Chank deriving Show
+Chunk deriving Show
 
-4: chankSize
-((), Just 4){String}: chankName
-(chankSize, chankName){ChankBody}: chankData
-4{Word32}:chankCRC
+4: chunkSize
+((), Just 4){String}: chunkName
+(chunkSize, chunkName){ChunkBody}: chunkData
+4{Word32}:chunkCRC
 
 |]
 
 instance Field Word32 where
 	type FieldArgument Word32 = Int
-	toBinary n = makeBinary . BSL.pack . intToWords n
-	fromBinary n s = (fromIntegral $ toIntgr $ BSL.reverse t, d)
-		where
-		(t, d) = getBytes n s
+	toBinary n = makeBinary . pack . intToWords n
+	fromBinary n = first (wordsToInt . unpack) . getBytes n
 
-intToWords :: Integral i => Int -> i -> [Word8]
+intToWords :: (Bits i, Integral i) => Int -> i -> [Word8]
 intToWords = itw []
 	where
-	itw result 0 _ = result
-	itw result n i =
-		itw (fromIntegral (i `mod` 256) : result) (n - 1) (i `div` 256)
+	itw r 0 _ = r
+	itw r n i = itw (fromIntegral (i .&. 0xff) : r) (n - 1) (i `shiftR` 8)
 
-toIntgr :: BSL.ByteString -> Integer
-toIntgr = mkNum . map fromIntegral . BSL.unpack
+wordsToInt :: Bits i => [Word8] -> i
+wordsToInt = foldl (\r w -> r `shiftL` 8 .|. fromIntegral w) 0
 
-mkNum :: [Integer] -> Integer
-mkNum [] = 0
-mkNum (x : xs) = x + 2 ^ (8 :: Integer) * mkNum xs
-
-data ChankBody
-	= ChankIHDR IHDR
-	| ChankGAMA GAMA
-	| ChankSRGB SRGB
-	| ChankCHRM CHRM
-	| ChankPLTE PLTE
-	| ChankBKGD BKGD
-	| ChankIDAT { cidat :: IDAT }
-	| ChankTEXT TEXT
-	| ChankIEND IEND
+data ChunkBody
+	= ChunkIHDR IHDR
+	| ChunkGAMA GAMA
+	| ChunkSRGB SRGB
+	| ChunkCHRM CHRM
+	| ChunkPLTE PLTE
+	| ChunkBKGD BKGD
+	| ChunkIDAT { cidat :: IDAT }
+	| ChunkTEXT TEXT
+	| ChunkIEND IEND
 	| Others String
 	deriving Show
 
-instance Field ChankBody where
-	type FieldArgument ChankBody = (Int, String)
-	toBinary _ (ChankIHDR c) = toBinary () c
-	toBinary _ (ChankGAMA c) = toBinary () c
-	toBinary _ (ChankSRGB c) = toBinary () c
-	toBinary (n, _) (ChankCHRM chrm) = toBinary n chrm
-	toBinary (n, _) (ChankPLTE plte) = toBinary n plte
-	toBinary _ (ChankBKGD c) = toBinary () c
-	toBinary (n, _) (ChankIDAT c) = toBinary n c
-	toBinary (n, _) (ChankTEXT c) = toBinary n c
-	toBinary _ (ChankIEND c) = toBinary () c
+instance Field ChunkBody where
+	type FieldArgument ChunkBody = (Int, String)
+	toBinary _ (ChunkIHDR c) = toBinary () c
+	toBinary _ (ChunkGAMA c) = toBinary () c
+	toBinary _ (ChunkSRGB c) = toBinary () c
+	toBinary (n, _) (ChunkCHRM chrm) = toBinary n chrm
+	toBinary (n, _) (ChunkPLTE plte) = toBinary n plte
+	toBinary _ (ChunkBKGD c) = toBinary () c
+	toBinary (n, _) (ChunkIDAT c) = toBinary n c
+	toBinary (n, _) (ChunkTEXT c) = toBinary n c
+	toBinary _ (ChunkIEND c) = toBinary () c
 	toBinary (n, _) (Others str) = toBinary ((), Just n) str
-	fromBinary (_, "IHDR") str = let (ihdr, rest) = fromBinary () str in
-		(ChankIHDR ihdr, rest)
-	fromBinary (_, "gAMA") str = let (gama, rest) = fromBinary () str in
-		(ChankGAMA gama, rest)
-	fromBinary (_, "sRGB") str = let (c, rest) = fromBinary () str in
-		(ChankSRGB c, rest)
-	fromBinary (n, "cHRM") str = let (chrm, rest) = fromBinary n str in
-		(ChankCHRM chrm, rest)
-	fromBinary (n, "PLTE") str = let (plte, rest) = fromBinary n str in
-		(ChankPLTE plte, rest)
-	fromBinary (_, "bKGD") str = let (c, rest) = fromBinary () str in
-		(ChankBKGD c, rest)
-	fromBinary (n, "IDAT") str = let (c, rest) = fromBinary n str in
-		(ChankIDAT c, rest)
-	fromBinary (n, "tEXt") str = let (c, rest) = fromBinary n str in
-		(ChankTEXT c, rest)
-	fromBinary (_, "IEND") str = let (iend, rest) = fromBinary () str in
-		(ChankIEND iend, rest)
-	fromBinary (n, _) str = let (others, rest) = fromBinary ((), Just n) str in
-		(Others others, rest)
+	fromBinary (_, "IHDR") = first ChunkIHDR . fromBinary ()
+	fromBinary (_, "gAMA") = first ChunkGAMA . fromBinary ()
+	fromBinary (_, "sRGB") = first ChunkSRGB . fromBinary ()
+	fromBinary (n, "cHRM") = first ChunkCHRM . fromBinary n
+	fromBinary (n, "PLTE") = first ChunkPLTE . fromBinary n
+	fromBinary (_, "bKGD") = first ChunkBKGD . fromBinary ()
+	fromBinary (n, "IDAT") = first ChunkIDAT . fromBinary n
+	fromBinary (n, "tEXt") = first ChunkTEXT . fromBinary n
+	fromBinary (_, "IEND") = first ChunkIEND . fromBinary ()
+	fromBinary (n, _) = first Others . fromBinary ((), Just n)
 
 [binary|
 
@@ -198,6 +190,7 @@ arg :: Int
 [binary|
 
 PLTE deriving Show
+
 arg :: Int
 
 ((), Just (arg `div` 3)){[(Int, Int, Int)]}: colors
@@ -206,13 +199,12 @@ arg :: Int
 
 instance Field (Int, Int, Int) where
 	type FieldArgument (Int, Int, Int) = ()
-	toBinary _ (b, g, r) =
-		mconcat [toBinary 1 b, toBinary 1 g, toBinary 1 r]
+	toBinary _ (b, g, r) = mconcat [toBinary 1 b, toBinary 1 g, toBinary 1 r]
 	fromBinary _ s = let
-		(b, rest) = fromBinary 1 s
+		(r, rest) = fromBinary 1 s
 		(g, rest') = fromBinary 1 rest
-		(r, rest'') = fromBinary 1 rest' in
-		((b, g, r), rest'')
+		(b, rest'') = fromBinary 1 rest' in
+		((r, g, b), rest'')
 
 [binary|
 
@@ -228,8 +220,7 @@ IDAT deriving Show
 
 arg :: Int
 
-arg{BSL.ByteString}: idat
---((), Just arg){String}: idat
+arg{ByteString}: idat
 
 |]
 
