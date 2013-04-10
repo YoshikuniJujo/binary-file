@@ -152,7 +152,14 @@ IHDR deriving Show
 4: width
 4: height
 1: depth
-1: colorType
+: False
+: False
+: False
+: False
+: False
+{Bool}: alpha
+{Bool}: color
+{Bool}: palet
 1: compressionType
 1: filterType
 1: interlaceType

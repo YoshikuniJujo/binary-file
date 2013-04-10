@@ -2,7 +2,8 @@
 
 import File.Binary
 import File.Binary.Instances
-import File.Binary.Instances.LittleEndian
+-- import File.Binary.Instances.LittleEndian
+import File.Binary.Instances.BigEndian
 import System.Directory
 import System.IO
 import Control.Applicative
@@ -26,6 +27,14 @@ Tiny deriving Show
 arg :: Int
 
 4: "tiny"
+: True
+: False
+: False
+: False
+: True
+: False
+: False
+: True
 Main.size * arg{Integer}: value
 
 |]
