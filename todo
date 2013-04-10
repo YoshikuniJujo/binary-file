@@ -5,12 +5,7 @@
 	let ... in ... を許すべきかどうか考える
 	必要かどうかが問題だ
 5. 以下の refactoring
-	examples/readHex.hs
-	examples/tiny.hs
-	examples/bits.hs
-	examples/bitsb.hs
-	examples/bitslb.hs
-	examples/tobits.hs
+	examples/CRC.hs
 6. field の値が正しくなかった場合に error を出して終了する仕様を直す
 	あるいは error のままにするほうが良いかもしれない
 	error のままであったとしても exception を選ぶべきか考える

@@ -1,14 +1,13 @@
 {-# LANGUAGE QuasiQuotes, TypeFamilies, ScopedTypeVariables #-}
 
-import File.Binary
-import File.Binary.Instances
-import File.Binary.Instances.BigEndian
+import File.Binary (binary, Field(..))
+import File.Binary.Instances ()
+import File.Binary.Instances.BigEndian (BitsInt)
 
+main :: IO ()
 main = do
-	let (bits :: Bits, rest) = fromBinary () "hello"
+	let (bits :: Bits, "") = fromBinary () "hello"
 	print bits
-	print rest
-	print (consToBits () bits ([], "") :: ([Bool], String))
 	print (toBinary () bits :: String)
 
 [binary|
@@ -28,6 +27,6 @@ Bits deriving Show
 {Bool}: c5
 {Bool}: c6
 {Bool}: c7
-((), Nothing){[Bool]}: rest
+((), Nothing){[Bool]}: rests
 
 |]

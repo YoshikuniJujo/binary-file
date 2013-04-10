@@ -1,20 +1,22 @@
 {-# LANGUAGE QuasiQuotes, TypeFamilies #-}
 
-import File.Binary
-import File.Binary.Instances
-import File.Binary.Instances.BigEndian
-import System.Environment
+import File.Binary (binary, Field(..))
+import File.Binary.Instances ()
+import File.Binary.Instances.BigEndian ()
+import System.Environment (getArgs)
+
+--------------------------------------------------------------------------------
 
 main :: IO ()
-main = putStrLn . showBits . fst . fromBinary () . head =<< getArgs
+main = mapM_ (putStrLn . showBits . fst . fromBinary ()) =<< getArgs
 
 showBits :: Bits -> String
-showBits (Bits bs) = unwords $ map (concatMap (show . (fromEnum :: Bool -> Int))) bs
+showBits = unwords . map (concatMap $ show . (fromEnum :: Bool -> Int)) . bools
 
 [binary|
 
 Bits deriving Show
 
-(((), Just 8), Nothing){[[Bool]]}: bs
+(((), Just 8), Nothing){[[Bool]]}: bools
 
 |]

@@ -1,20 +1,23 @@
 {-# LANGUAGE QuasiQuotes, TypeFamilies #-}
 
-import File.Binary
-import File.Binary.Instances
-import File.Binary.Instances.LittleEndian
-import System.Environment
-import Control.Applicative
-import Numeric
+import File.Binary (binary, Field(..), readBinaryFile)
+import File.Binary.Instances ()
+import File.Binary.Instances.LittleEndian ()
+import System.Environment (getArgs)
+import Numeric (showHex)
+import Data.List (intercalate)
+import Control.Applicative ((<$>))
 
+--------------------------------------------------------------------------------
+
+main :: IO ()
 main = do
-	cnt <- readBinaryFile . head =<< getArgs
-	putStrLn $ unlines $ map unwords $ groupN 16 $ map (two . flip showHex "") $
-		hex $ fst (fromBinary () cnt :: (Hex, String))
+	(h, "") <- fromBinary () <$> (readBinaryFile . head =<< getArgs)
+	putStr $ unlines $ map (intercalate "-" . map unwords) $ groupN 2 $
+		groupN 8 $ map (two . flip showHex "") $ hex h
 
-two s = replicate (2 - l) '0' ++ s
-	where
-	l = length s
+two :: String -> String
+two s = let l = length s in replicate (2 - l) '0' ++ s
 
 groupN :: Int -> [a] -> [[a]]
 groupN _ [] = []

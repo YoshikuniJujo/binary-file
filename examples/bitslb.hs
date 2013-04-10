@@ -1,16 +1,17 @@
 {-# LANGUAGE QuasiQuotes, ScopedTypeVariables, TypeFamilies #-}
 
-import File.Binary
-import File.Binary.Instances
-import qualified File.Binary.Instances.LittleEndian as L
-import qualified File.Binary.Instances.BigEndian as B
+import File.Binary (binary, Field(..))
+import File.Binary.Instances ()
+import qualified File.Binary.Instances.LittleEndian as L (BitsInt)
+import qualified File.Binary.Instances.BigEndian as B (BitsInt)
 
+--------------------------------------------------------------------------------
+
+main :: IO ()
 main = do
-	let (bits :: Bits, rest) = fromBinary () "\x1b\xf0"
+	let (bits :: Bits, "") = fromBinary () "he" -- "\x1b\xf0"
 	print bits
-	print rest
-	let bin = toBinary () bits :: String
-	print bin
+	print (toBinary () bits :: String)
 
 [binary|
 
@@ -21,9 +22,10 @@ Bits deriving Show
 2{B.BitsInt}: big1
 3{B.BitsInt}: big2
 3{B.BitsInt}: big3
-{Bool}: bb0
-{Bool}: bb1
-{Bool}: bb2
-{Bool}: bb3
+4{L.BitsInt} : little3
+-- {Bool}: bb0
+-- {Bool}: bb1
+-- {Bool}: bb2
+-- {Bool}: bb3
 
 |]
