@@ -74,9 +74,13 @@ description:
 
 extra-source-files:
     examples/readPNG.hs,
+    examples/CRC.hs,
     examples/readBitmap.hs,
     examples/readHex.hs,
     examples/tiny.hs
+    examples/bits.hs
+    examples/bitsb.hs
+    examples/bitslb.hs
 
 source-repository	head
     type:	git
