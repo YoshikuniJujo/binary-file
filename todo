@@ -9,3 +9,14 @@
 	error のままであったとしても exception を選ぶべきか考える
 6. homepage の作成
 7. examples/CRC.hs を理解する
+8. examples/PNG.hs で ChunkBody に size 関数を入れるか
+9. examples/readPNG はシンプルなままにする -> よりシンプルにしていく
+10. examples/png/ 内で将来的に png-file package の File.Binary.PNG として使える
+	ものを作っていこうと思う
+	今のところ以下の2つをする必要がある
+11. png ihdr plte chunks とするだけで chunks をいいように配置してくれるようにする
+12. class ChunkBody を作り、そのインスタンスとすることで新しい chunk を登録できる
+	ようにしたい
+	これは、binary-file の用例としてはあまり見栄えがしないかもしれない
+	一度共通の chunk に読み込んでから、そこから変換する形になると思う
+	OtherChunk からの変換として使うべきか
