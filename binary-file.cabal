@@ -6,6 +6,7 @@ version:	0.15.0
 stability:	experimental
 author:		Yoshikuni Jujo <PAF01143@nifty.ne.jp>
 maintainer:	Yoshikuni Jujo <PAF01143@nifty.ne.jp>
+homepage:	https://skami.iocikun.jp/haskell/packages/binary-file
 
 license:	BSD3
 license-file:	LICENSE
