@@ -2,7 +2,7 @@ build-type:	Simple
 cabal-version:	>= 1.8
 
 name:		binary-file
-version:	0.15.0
+version:	0.15.9
 stability:	experimental
 author:		Yoshikuni Jujo <PAF01143@nifty.ne.jp>
 maintainer:	Yoshikuni Jujo <PAF01143@nifty.ne.jp>
@@ -30,7 +30,7 @@ description:
     > main = do
     >	[inf] <- getArgs
     >   cnt <- BS.readFile inf
-    >	let (bmp, rest) = fromBinary () cnt :: (Bitmap, String)
+    >	let Right (bmp, rest) = fromBinary () cnt :: (Bitmap, String)
     >	print bmp
     >
     > instance Field (Int, Int, Int) where
@@ -90,7 +90,7 @@ source-repository	head
 source-repository	this
     type:	git
     location:	git://github.com/YoshikuniJujo/binary-file.git
-    tag:	0.15.0
+    tag:	0.15.9
 
 library
     hs-source-dirs:	src

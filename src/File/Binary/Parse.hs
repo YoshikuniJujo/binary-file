@@ -1,4 +1,9 @@
-{-# LANGUAGE TemplateHaskell, QuasiQuotes, FlexibleContexts, PackageImports #-}
+{-# LANGUAGE
+	TemplateHaskell,
+	QuasiQuotes,
+	FlexibleContexts,
+	PackageImports,
+	PatternGuards #-}
 
 {-# OPTIONS_GHC
 	-fno-warn-name-shadowing
