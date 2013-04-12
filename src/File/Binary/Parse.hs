@@ -14,7 +14,7 @@ module File.Binary.Parse (
 import Text.Peggy (peggy, parseString, space, defaultDelimiter)
 import Language.Haskell.TH (
 	ExpQ, integerL, litE, varE, conE, tupE, appE, uInfixE, parensE,
-	TypeQ, conT, listT, tupleT, appT, Name, mkName)
+	TypeQ, conT, listT, tupleT, appT, Name, mkName, FieldExp)
 import "monads-tf" Control.Monad.Reader (Reader, runReader, ask)
 import Control.Applicative ((<$>), (<*>))
 import Control.Arrow(second)
@@ -34,9 +34,9 @@ data Structure = Structure {
 	sItems :: [SItem] }
 
 data SItem = SItem { argOf :: Expression, valueOf :: Value }
-type Expression	= Reader (ExpQ, ExpQ, String) ExpQ
+type Expression	= Reader ([FieldExp], ExpQ, String) ExpQ
 
-expression :: ExpQ -> ExpQ -> String -> Expression -> ExpQ
+expression :: [FieldExp] -> ExpQ -> String -> Expression -> ExpQ
 expression ret arg argn e = runReader e (ret, arg, argn)
 
 type Value = Either Constant (Name, TypeQ)
@@ -48,11 +48,11 @@ constant f _ _ (Integer i) = f i
 constant _ f _ (String s) = f s
 constant _ _ f (Bool b) = f b
 
-identify :: String -> (ExpQ, ExpQ, String) -> ExpQ
+identify :: String -> ([FieldExp], ExpQ, String) -> ExpQ
 identify var (ret, arg, argn)
 	| var == argn = arg
-	| '.' `elem` var = varE $ mkName var
-	| otherwise = appE (varE $ mkName var) ret
+	| Just var' <- lookup (mkName var) ret = return var'
+	| otherwise = varE $ mkName var
 
 [peggy|
 
