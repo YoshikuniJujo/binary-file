@@ -13,12 +13,12 @@ import Control.Arrow (first)
 
 instance Field Integer where
 	type FieldArgument Integer = Int
-	fromBinary n = first (wordsToInt . unpack) . getBytes n
+	fromBinary n = return . first (wordsToInt . unpack) . getBytes n
 	toBinary n = makeBinary . pack . intToWords n
 
 instance Field Int where
 	type FieldArgument Int = Int
-	fromBinary n = first (wordsToInt . unpack) . getBytes n
+	fromBinary n = return . first (wordsToInt . unpack) . getBytes n
 	toBinary n = makeBinary . pack . intToWords n
 
 wordsToInt :: Bits i => [Word8] -> i
@@ -33,7 +33,7 @@ intToWords = itw []
 instance Field Bool where
 	type FieldArgument Bool = ()
 	fromBits () ([], bin) = fromBits () $ pop bin
-	fromBits () (bs, bin) = (last bs, (init bs, bin))
+	fromBits () (bs, bin) = return (last bs, (init bs, bin))
 	consToBits () b (bs, bin)
 		| length bs == 7 = ([], push (bs ++ [b], bin))
 		| otherwise = (bs ++ [b], bin)
@@ -42,7 +42,7 @@ data BitsInt = BitsInt { bitsInt :: Int } deriving Show
 
 instance Field BitsInt where
 	type FieldArgument BitsInt = Int
-	fromBits n = first BitsInt . fb n 0
+	fromBits n = return . first BitsInt . fb n 0
 	consToBits n = ctb n . bitsInt
 
 fromEnum' :: (Enum e, Num i) => e -> i

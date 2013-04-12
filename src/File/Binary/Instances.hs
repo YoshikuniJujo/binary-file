@@ -9,8 +9,7 @@ import Data.ByteString.Lazy (ByteString, take, drop, toChunks, fromChunks)
 import Data.ByteString.Lazy.Char8 (pack, unpack)
 import qualified Data.ByteString as BS (ByteString, take, drop, concat)
 import Control.Monad (replicateM)
-import "monads-tf" Control.Monad.State (StateT(..), runState, gets)
-import "monads-tf" Control.Monad.Identity (Identity(..))
+import "monads-tf" Control.Monad.State (StateT(..), gets)
 import Control.Applicative ((<$>), (<*>))
 import Control.Arrow (first, (&&&))
 import Data.Monoid (mempty)
@@ -19,17 +18,17 @@ import Data.Monoid (mempty)
 
 instance Field ByteString where
 	type FieldArgument ByteString = Int
-	fromBinary = getBytes
+	fromBinary a = return . getBytes a
 	toBinary _ = makeBinary
 
 instance Field BS.ByteString where
 	type FieldArgument BS.ByteString = Int
-	fromBinary n = first (BS.concat . toChunks) . getBytes n
+	fromBinary n = return . first (BS.concat . toChunks) . getBytes n
 	toBinary _ = makeBinary . fromChunks . (: [])
 
 instance Field Char where
 	type FieldArgument Char = ()
-	fromBinary _ = first (head . unpack) . getBytes 1
+	fromBinary _ = return . first (head . unpack) . getBytes 1
 	toBinary _ = makeBinary . pack . (: [])
 
 instance Field r => Field [r] where
@@ -38,14 +37,14 @@ instance Field r => Field [r] where
 	fromBits (a, Nothing) = mempty `whole` fromBits a
 	consToBits (a, _) = flip $ foldr $ consToBits a
 
-times :: Int -> (s -> (ret, s)) -> s -> ([ret], s)
-times n f = runState $ replicateM n (StateT $ Identity . f)
+times :: Monad m => Int -> (s -> m (ret, s)) -> s -> m ([ret], s)
+times n f = runStateT $ replicateM n (StateT f)
 
-whole :: Eq s => s -> (s -> (ret, s)) -> s -> ([ret], s)
-whole e f = runState $ do
+whole :: (Functor m, Monad m, Eq s) => s -> (s -> m (ret, s)) -> s -> m ([ret], s)
+whole e f = runStateT $ do
 	emp <- gets (== e)
 	if emp then return [] else
-		(:) <$> (StateT $ Identity . f) <*> (StateT $ Identity . whole e f)
+		(:) <$> (StateT f) <*> (StateT $ whole e f)
 
 --------------------------------------------------------------------------------
 

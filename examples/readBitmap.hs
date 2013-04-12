@@ -20,7 +20,7 @@ main = do
 
 readBitmap :: FilePath -> IO Bitmap
 readBitmap fp = do
-	(bmp, "") <- fromBinary () <$> readBinaryFile fp
+	Right (bmp, "") <- fromBinary () <$> readBinaryFile fp
 	return bmp
 
 writeBitmap :: FilePath -> Bitmap -> IO ()
@@ -28,11 +28,11 @@ writeBitmap fp = writeBinaryFile fp . toBinary ()
 
 instance Field (Int, Int, Int) where
 	type FieldArgument (Int, Int, Int) = ()
-	fromBinary _ s = let
-		(b, rest) = fromBinary 1 s
-		(g, rest') = fromBinary 1 rest
-		(r, rest'') = fromBinary 1 rest' in
-		((b, g, r), snd $ getBytes 1 rest'')
+	fromBinary _ s = do
+		(b, rest) <- fromBinary 1 s
+		(g, rest') <- fromBinary 1 rest
+		(r, rest'') <- fromBinary 1 rest'
+		return ((b, g, r), snd $ getBytes 1 rest'')
 	toBinary _ (b, g, r) = mconcat [
 		toBinary 1 b,
 		toBinary 1 g,

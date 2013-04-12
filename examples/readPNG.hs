@@ -44,7 +44,7 @@ main = do
 
 readPNG :: FilePath -> IO PNG
 readPNG fp = do
-	(png, "") <- fromBinary () <$> BS.readFile fp
+	Right (png, "") <- fromBinary () <$> BS.readFile fp
 	return png
 
 writePNG :: FilePath -> PNG -> IO ()
@@ -98,7 +98,7 @@ Chunk deriving Show
 instance Field Word32 where
 	type FieldArgument Word32 = Int
 	toBinary n = makeBinary . pack . intToWords n
-	fromBinary n = first (wordsToInt . unpack) . getBytes n
+	fromBinary n = return . first (wordsToInt . unpack) . getBytes n
 
 intToWords :: (Bits i, Integral i) => Int -> i -> [Word8]
 intToWords = itw []
@@ -134,16 +134,16 @@ instance Field ChunkBody where
 	toBinary (n, _) (ChunkTEXT c) = toBinary n c
 	toBinary _ (ChunkIEND c) = toBinary () c
 	toBinary (n, _) (Others str) = toBinary ((), Just n) str
-	fromBinary (_, "IHDR") = first ChunkIHDR . fromBinary ()
-	fromBinary (_, "gAMA") = first ChunkGAMA . fromBinary ()
-	fromBinary (_, "sRGB") = first ChunkSRGB . fromBinary ()
-	fromBinary (n, "cHRM") = first ChunkCHRM . fromBinary n
-	fromBinary (n, "PLTE") = first ChunkPLTE . fromBinary n
-	fromBinary (_, "bKGD") = first ChunkBKGD . fromBinary ()
-	fromBinary (n, "IDAT") = first ChunkIDAT . fromBinary n
-	fromBinary (n, "tEXt") = first ChunkTEXT . fromBinary n
-	fromBinary (_, "IEND") = first ChunkIEND . fromBinary ()
-	fromBinary (n, _) = first Others . fromBinary ((), Just n)
+	fromBinary (_, "IHDR") = fmap (first ChunkIHDR) . fromBinary ()
+	fromBinary (_, "gAMA") = fmap (first ChunkGAMA) . fromBinary ()
+	fromBinary (_, "sRGB") = fmap (first ChunkSRGB) . fromBinary ()
+	fromBinary (n, "cHRM") = fmap (first ChunkCHRM) . fromBinary n
+	fromBinary (n, "PLTE") = fmap (first ChunkPLTE) . fromBinary n
+	fromBinary (_, "bKGD") = fmap (first ChunkBKGD) . fromBinary ()
+	fromBinary (n, "IDAT") = fmap (first ChunkIDAT) . fromBinary n
+	fromBinary (n, "tEXt") = fmap (first ChunkTEXT) . fromBinary n
+	fromBinary (_, "IEND") = fmap (first ChunkIEND) . fromBinary ()
+	fromBinary (n, _) = fmap (first Others) . fromBinary ((), Just n)
 
 [binary|
 
@@ -207,11 +207,11 @@ arg :: Int
 instance Field (Int, Int, Int) where
 	type FieldArgument (Int, Int, Int) = ()
 	toBinary _ (b, g, r) = mconcat [toBinary 1 b, toBinary 1 g, toBinary 1 r]
-	fromBinary _ s = let
-		(r, rest) = fromBinary 1 s
-		(g, rest') = fromBinary 1 rest
-		(b, rest'') = fromBinary 1 rest' in
-		((r, g, b), rest'')
+	fromBinary _ s = do
+		(r, rest) <- fromBinary 1 s
+		(g, rest') <- fromBinary 1 rest
+		(b, rest'') <- fromBinary 1 rest'
+		return ((r, g, b), rest'')
 
 [binary|
 
