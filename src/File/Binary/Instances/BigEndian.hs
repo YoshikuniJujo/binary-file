@@ -5,7 +5,7 @@ module File.Binary.Instances.BigEndian (BitsInt) where
 
 import File.Binary.Classes (Field(..), Binary(..), pop, push)
 import Data.ByteString.Lazy (pack, unpack)
-import Data.Word (Word8)
+import Data.Word (Word8, Word32)
 import Data.Bits (Bits, (.&.), (.|.), shiftL, shiftR)
 import Control.Arrow (first)
 
@@ -18,6 +18,11 @@ instance Field Integer where
 
 instance Field Int where
 	type FieldArgument Int = Int
+	fromBinary n = return . first (wordsToInt . unpack) . getBytes n
+	toBinary n = makeBinary . pack . intToWords n
+
+instance Field Word32 where
+	type FieldArgument Word32 = Int
 	fromBinary n = return . first (wordsToInt . unpack) . getBytes n
 	toBinary n = makeBinary . pack . intToWords n
 
@@ -54,7 +59,7 @@ toEnum' = toEnum . fromIntegral
 fb :: (Bits f, Binary b) => Int -> f -> ([Bool], b) -> (f, ([Bool], b))
 fb 0 r bb = (r, bb)
 fb n r ([], b) = fb n r $ pop b
-fb n r (bs, b) = fb (n - 1) (r `shiftL` 1 .|. (fromEnum' $ last bs)) (init bs, b)
+fb n r (bs, b) = fb (n - 1) (r `shiftL` 1 .|. fromEnum' (last bs)) (init bs, b)
 
 ctb :: (Bits f, Integral f, Binary b) => Int -> f -> ([Bool], b) -> ([Bool], b)
 ctb 0 _ r = r

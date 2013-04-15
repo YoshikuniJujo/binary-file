@@ -44,7 +44,7 @@ whole :: (Functor m, Monad m, Eq s) => s -> (s -> m (ret, s)) -> s -> m ([ret], 
 whole e f = runStateT $ do
 	emp <- gets (== e)
 	if emp then return [] else
-		(:) <$> (StateT f) <*> (StateT $ whole e f)
+		(:) <$> StateT f <*> (StateT $ whole e f)
 
 --------------------------------------------------------------------------------
 

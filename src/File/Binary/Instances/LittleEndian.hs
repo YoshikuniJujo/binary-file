@@ -5,13 +5,18 @@ module File.Binary.Instances.LittleEndian (BitsInt) where
 
 import File.Binary.Classes (Field(..), Binary(..), pop, push)
 import Data.ByteString.Lazy (pack, unpack)
-import Data.Word (Word8)
+import Data.Word (Word8, Word32)
 import Data.Bits (Bits, (.&.), (.|.), shiftL, shiftR)
 import Control.Arrow (first)
 import Control.Applicative
 
 instance Field Int where
 	type FieldArgument Int = Int
+	fromBinary n = return . first (wordsToInt . unpack) . getBytes n
+	toBinary n = makeBinary . pack . intToWords n
+
+instance Field Word32 where
+	type FieldArgument Word32 = Int
 	fromBinary n = return . first (wordsToInt . unpack) . getBytes n
 	toBinary n = makeBinary . pack . intToWords n
 
@@ -32,7 +37,7 @@ instance Field Bool where
 	fromBits () ([], bin) = fromBits () $ pop bin
 	fromBits () (b : bs, bin) = return (b, (bs, bin))
 	consToBits () b (bs, bin)
-		| length bs == 7 = ([], push ((b : bs), bin))
+		| length bs == 7 = ([], push (b : bs, bin))
 		| otherwise = (b : bs, bin)
 
 data BitsInt = BitsInt { bitsInt :: Int } deriving Show
@@ -43,7 +48,7 @@ instance Field BitsInt where
 	fromBits n ([], bin) = fromBits n $ pop bin
 	fromBits n (b : bs, bin) = first
 		(BitsInt . (fromEnum b .|.) . (`shiftL` 1) . bitsInt) <$>
-		(fromBits (n - 1) (bs, bin))
+		fromBits (n - 1) (bs, bin)
 	consToBits 0 _ bb = bb
 	consToBits n (BitsInt f) bb = let
 		(bs, bin) = consToBits (n - 1) (BitsInt $ f `shiftR` 1) bb in

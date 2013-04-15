@@ -168,6 +168,7 @@ Chunk deriving Show
 
 |]
 
+{-
 instance Field Word32 where
 	type FieldArgument Word32 = Int
 	toBinary n = makeBinary . pack . intToWords n
@@ -181,6 +182,7 @@ intToWords = itw []
 
 wordsToInt :: Bits i => [Word8] -> i
 wordsToInt = foldl (\r w -> r `shiftL` 8 .|. fromIntegral w) 0
+-}
 
 data ChunkBody
 	= ChunkIHDR IHDR

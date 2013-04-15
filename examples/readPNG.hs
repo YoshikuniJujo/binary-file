@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 import Prelude hiding (concat)
-import File.Binary (binary, Field(..), Binary(..))
+import File.Binary (binary, Field(..))
 import File.Binary.Instances ()
 import File.Binary.Instances.BigEndian ()
 import CRC (crc)
@@ -12,9 +12,8 @@ import Codec.Compression.Zlib (
 import qualified Data.ByteString as BS (ByteString, length, readFile, writeFile)
 import qualified Data.ByteString.Char8 as BSC (unpack)
 import Data.ByteString.Lazy
-	(ByteString, pack, unpack, concat, toChunks, fromChunks)
-import Data.Word (Word8, Word32)
-import Data.Bits (Bits, (.&.), (.|.), shiftL, shiftR)
+	(ByteString, concat, toChunks, fromChunks)
+import Data.Word (Word32)
 import Data.Monoid (mconcat)
 import Control.Applicative ((<$>))
 import Control.Arrow(first)
@@ -94,20 +93,6 @@ Chunk deriving Show
 4{Word32}:chunkCRC
 
 |]
-
-instance Field Word32 where
-	type FieldArgument Word32 = Int
-	toBinary n = makeBinary . pack . intToWords n
-	fromBinary n = return . first (wordsToInt . unpack) . getBytes n
-
-intToWords :: (Bits i, Integral i) => Int -> i -> [Word8]
-intToWords = itw []
-	where
-	itw r 0 _ = r
-	itw r n i = itw (fromIntegral (i .&. 0xff) : r) (n - 1) (i `shiftR` 8)
-
-wordsToInt :: Bits i => [Word8] -> i
-wordsToInt = foldl (\r w -> r `shiftL` 8 .|. fromIntegral w) 0
 
 data ChunkBody
 	= ChunkIHDR IHDR

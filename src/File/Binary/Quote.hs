@@ -72,11 +72,11 @@ readf' :: ([FieldExp] -> ExpQ) -> Value -> FieldMonad [StmtQ]
 readf' size (Left val) = do
 	(bin, rts2) <- get
 	[rv, rest, bin'] <- liftQ $ mapM newName ["_rv", "_rst", "_bin'"]
-	put $ (varE bin', rts2)
+	put (varE bin', rts2)
 	let lit = constant
 		((`sigE` conT ''Integer) . litE . integerL)
 		(appE (varE 'pack) . litE . stringL)
-		(\b -> if b then conE 'True else conE 'False)
+		(\b -> conE (if b then 'True else 'False))
 		val
 	return [bindS (tupP [varP rv, varP rest])
 				(appsE [varE 'fromBits, size rts2, bin]),
@@ -88,7 +88,7 @@ readf' size (Left val) = do
 readf' size (Right (var, _)) = do
 	(bin, rts2) <- get
 	[bin', tmp] <- liftQ $ mapM newName ["_bin'", "_tmp"]
-	put $ (varE bin', (var, VarE tmp) : rts2)
+	put (varE bin', (var, VarE tmp) : rts2)
 	liftW $ tell [(var, VarE tmp)]
 	return [bindS (tildeP $ tupP [varP tmp, varP bin']) $
 		appsE [varE 'fromBits, size rts2, bin]]
@@ -96,7 +96,7 @@ readf' size (Right (var, _)) = do
 writing :: [FieldExp] -> String -> [SItem] -> ClauseQ
 writing fe argn items = do
 	[arg, dat, bin0] <- mapM newName ["_arg", "_dat", "bin0"]
-	let fe' = map (\n -> (n, VarE n `AppE` VarE dat)) $ map fst fe
+	let fe' = map ((\n -> (n, VarE n `AppE` VarE dat)) . fst) fe
 	flip (clause [varP arg, varP dat, varP bin0]) [] $ normalB $
 		appE (appsE [varE 'foldr, varE '($), varE bin0]) $ listE $
 			(<$> items) $ writef dat
@@ -107,7 +107,7 @@ writef :: Name -> ExpQ -> Value -> ExpQ
 writef _ size (Left val) = varE 'consToBits `appE` size `appE` constant
 	((`sigE` conT ''Integer) . litE . integerL)
 	(appE (varE 'pack) . litE . stringL)
-	(\b -> if b then conE 'True else conE 'False)
+	(\b -> conE (if b then 'True else 'False))
 	val
 writef dat size (Right (rec, _)) =
 	varE 'consToBits `appE` size `appE` (varE rec `appE` varE dat)
