@@ -5,8 +5,9 @@ module File.Binary.Instances () where
 
 import Prelude hiding (take, drop)
 import File.Binary.Classes (Field(..), Binary(..))
-import Data.ByteString.Lazy (ByteString, take, drop, toChunks, fromChunks)
-import Data.ByteString.Lazy.Char8 (pack, unpack)
+import Data.Word (Word8)
+import Data.ByteString.Lazy (ByteString, take, drop, toChunks, fromChunks, pack, unpack)
+import qualified Data.ByteString.Lazy.Char8 as BSLC (pack, unpack)
 import qualified Data.ByteString as BS (ByteString, take, drop, concat)
 import Control.Monad (replicateM)
 import "monads-tf" Control.Monad.State (StateT(..), gets)
@@ -28,6 +29,11 @@ instance Field BS.ByteString where
 
 instance Field Char where
 	type FieldArgument Char = ()
+	fromBinary _ = return . first (head . BSLC.unpack) . getBytes 1
+	toBinary _ = makeBinary . BSLC.pack . (: [])
+
+instance Field Word8 where
+	type FieldArgument Word8 = ()
 	fromBinary _ = return . first (head . unpack) . getBytes 1
 	toBinary _ = makeBinary . pack . (: [])
 
@@ -49,8 +55,8 @@ whole e f = runStateT $ do
 --------------------------------------------------------------------------------
 
 instance Binary String where
-	getBytes n = first pack . splitAt n
-	makeBinary = unpack
+	getBytes n = first BSLC.pack . splitAt n
+	makeBinary = BSLC.unpack
 
 instance Binary ByteString where
 	getBytes n = take (fromIntegral n) &&& drop (fromIntegral n)
