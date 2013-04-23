@@ -26,7 +26,7 @@ instance Field Word32 where
 	fromBinary n = return . first (wordsToInt . unpack) . getBytes n
 	toBinary n = makeBinary . pack . intToWords n
 
-wordsToInt :: Bits i => [Word8] -> i
+wordsToInt :: (Num i, Bits i) => [Word8] -> i
 wordsToInt = foldl (\i w -> i `shiftL` 8 .|. fromIntegral w) 0
 
 intToWords :: (Bits i, Integral i) => Int -> i -> [Word8]
