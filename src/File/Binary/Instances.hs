@@ -1,19 +1,28 @@
-{-# LANGUAGE TypeFamilies, TypeSynonymInstances, FlexibleInstances, PackageImports #-}
+{-# LANGUAGE
+	TypeFamilies,
+	TypeSynonymInstances,
+	FlexibleInstances,
+	PackageImports,
+	OverloadedStrings #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module File.Binary.Instances () where
 
-import Prelude hiding (take, drop)
+import Prelude hiding (take, drop, span)
 import File.Binary.Classes (Field(..), Binary(..))
 import Data.Word (Word8)
-import Data.ByteString.Lazy (ByteString, take, drop, toChunks, fromChunks, pack, unpack)
+import Data.ByteString.Lazy
+	(ByteString, take, drop, toChunks, fromChunks, pack, unpack, uncons, span)
 import qualified Data.ByteString.Lazy.Char8 as BSLC (pack, unpack)
-import qualified Data.ByteString as BS (ByteString, take, drop, concat)
+import qualified Data.ByteString as BS (ByteString, take, drop, concat, uncons, span)
+import qualified Data.ByteString.Char8 ()
 import Control.Monad (replicateM)
 import "monads-tf" Control.Monad.State (StateT(..), gets)
 import Control.Applicative ((<$>), (<*>))
 import Control.Arrow (first, (&&&))
 import Data.Monoid (mempty)
+import Data.Char
+import Data.Maybe
 
 --------------------------------------------------------------------------------
 
@@ -56,12 +65,17 @@ whole e f = runStateT $ do
 
 instance Binary String where
 	getBytes n = first BSLC.pack . splitAt n
+	unconsByte = fromIntegral . ord . head &&& tail
 	makeBinary = BSLC.unpack
 
 instance Binary ByteString where
 	getBytes n = take (fromIntegral n) &&& drop (fromIntegral n)
+	spanBytes = span
+	unconsByte = fromMaybe (0, "") . uncons
 	makeBinary = id
 
 instance Binary BS.ByteString where
 	getBytes n = fromChunks . (: []) . BS.take n &&& BS.drop n
+	spanBytes p = first (fromChunks . (: [])) . BS.span p
+	unconsByte = fromMaybe (0, "") . BS.uncons
 	makeBinary = BS.concat . toChunks

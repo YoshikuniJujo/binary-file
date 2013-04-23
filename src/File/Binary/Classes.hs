@@ -1,10 +1,12 @@
-{-# LANGUAGE TypeFamilies, TupleSections #-}
+{-# LANGUAGE TypeFamilies, TupleSections, OverloadedStrings #-}
 
 module File.Binary.Classes (Field(..), Binary(..), pop, push) where
 
-import Data.ByteString.Lazy (ByteString, unpack, singleton)
+import Data.ByteString.Lazy (ByteString, unpack, singleton, cons)
+import qualified Data.ByteString.Lazy.Char8 as BSLC (tail, head, cons)
 import Data.Bits ((.&.), (.|.), shiftL, shiftR)
 import Data.Monoid (Monoid, mappend, mempty)
+import Data.Word
 import Control.Arrow (first, second)
 import Control.Applicative
 
@@ -44,4 +46,19 @@ push = uncurry $ mappend . makeBinary . singleton . bstw
 
 class (Eq b, Monoid b) => Binary b where
 	getBytes :: Int -> b -> (ByteString, b)
+	spanBytes :: (Word8 -> Bool) -> b -> (ByteString, b)
+	unconsByte :: b -> (Word8, b)
 	makeBinary :: ByteString -> b
+
+	getBytes 0 b = ("", b)
+	getBytes n b = let
+		(h, t) = unconsByte b
+		(r, b) = getBytes (n - 1) t in
+		(h `cons` r, b)
+
+	spanBytes p b
+		| b == makeBinary "" = ("", b)
+		| p h = let (ret, rest) = spanBytes p t in (h `cons` ret, rest)
+		| otherwise = ("", b)
+		where
+		(h, t) = unconsByte b
