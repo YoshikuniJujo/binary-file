@@ -104,7 +104,7 @@ ex1 :: Expression
 	/ var				{ identify $1 <$> ask }
 
 op :: Expression
-	= [!\\#$%&*+./<=>?@^|~-:]+	{ return $ varE $ mkName $1 }
+	= [!\\#$%&*+./<=>?@^|~\-]+	{ return $ varE $ mkName $1 }
 	/ '`' var '`'			{ return $ varE $ mkName $1 }
 
 typ :: TypeQ

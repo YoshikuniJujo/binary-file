@@ -2,7 +2,7 @@
 
 module File.Binary.Classes (Field(..), Binary(..), pop, push) where
 
-import Data.ByteString.Lazy (ByteString, unpack, singleton, cons)
+import Data.ByteString.Lazy (ByteString, unpack, singleton, cons')
 import qualified Data.ByteString.Lazy.Char8 as BSLC ()
 import Data.Bits ((.&.), (.|.), shiftL, shiftR)
 import Data.Monoid (Monoid, mappend, mempty)
@@ -54,11 +54,11 @@ class (Eq b, Monoid b) => Binary b where
 	getBytes n b = let
 		(h, t) = unconsByte b
 		(r, b') = getBytes (n - 1) t in
-		(h `cons` r, b')
+		(h `cons'` r, b')
 
 	spanBytes p b
 		| b == makeBinary "" = ("", b)
-		| p h = let (ret, rest) = spanBytes p t in (h `cons` ret, rest)
+		| p h = let (ret, rest) = spanBytes p t in (h `cons'` ret, rest)
 		| otherwise = ("", b)
 		where
 		(h, t) = unconsByte b
