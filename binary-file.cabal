@@ -35,14 +35,16 @@ description:
     >
     > instance Field (Int, Int, Int) where
     >    type FieldArgument (Int, Int, Int) = ()
-    >    fromBinary _ s = let
-    >        (b, rest) = toType 1 s
-    >        (g, rest') = toType 1 rest
-    >        (r, rest'') = toType 1 rest' in
-    >        ((b, g, r), snd $ getBytes 1 1 rest'')
-    >    toBinary _ (b, g, r) = concatBinary [
-    >        fromType 1 b, fromType 1 g, fromType 1 r,
-    >        makeBinary $ BSL.singleton 0]
+    >    fromBinary _ s = do
+    >        (b, rest) <- fromBinary 1 s
+    >        (g, rest') <- fromBinary 1 rest
+    >        (r, rest'') <- fromBinary 1 rest' in
+    >        return ((b, g, r), snd $ getBytes 1 1 rest'')
+    >    toBinary _ (b, g, r) = do
+    >        b' <- toBinary 1 b
+    >        g' <- toBinary 1 g
+    >        r' <- toBinary 1 r
+    >        return $ concatBinary [b', g', r', makeBinary $ BSL.singleton 0]
     >
     > [binary|
     >

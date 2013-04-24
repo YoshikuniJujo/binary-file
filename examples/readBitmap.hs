@@ -24,7 +24,9 @@ readBitmap fp = do
 	return bmp
 
 writeBitmap :: FilePath -> Bitmap -> IO ()
-writeBitmap fp = writeBinaryFile fp . toBinary ()
+writeBitmap fp bmp = do
+	let Right bin = toBinary () bmp
+	writeBinaryFile fp bin
 
 instance Field (Int, Int, Int) where
 	type FieldArgument (Int, Int, Int) = ()
@@ -33,12 +35,11 @@ instance Field (Int, Int, Int) where
 		(g, rest') <- fromBinary 1 rest
 		(r, rest'') <- fromBinary 1 rest'
 		return ((b, g, r), snd $ getBytes 1 rest'')
-	toBinary _ (b, g, r) = mconcat [
-		toBinary 1 b,
-		toBinary 1 g,
-		toBinary 1 r,
-		makeBinary $ singleton 0
-	 ]
+	toBinary _ (b, g, r) = do
+		b' <- toBinary 1 b
+		g' <- toBinary 1 g
+		r' <- toBinary 1 r
+		return $ mconcat [b', g', r', makeBinary $ singleton 0]
 
 [binary|
 

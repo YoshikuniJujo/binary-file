@@ -47,7 +47,9 @@ readPNG fp = do
 	return png
 
 writePNG :: FilePath -> PNG -> IO ()
-writePNG fout = BS.writeFile fout . toBinary ()
+writePNG fout png = do
+	let Right cnt = toBinary () png
+	BS.writeFile fout cnt
 
 header :: PNG -> [Chunk]
 header PNG{ chunks = cs } =
@@ -191,7 +193,11 @@ arg :: Int
 
 instance Field (Int, Int, Int) where
 	type FieldArgument (Int, Int, Int) = ()
-	toBinary _ (b, g, r) = mconcat [toBinary 1 b, toBinary 1 g, toBinary 1 r]
+	toBinary _ (b, g, r) = do
+		b' <- toBinary 1 b
+		g' <- toBinary 1 g
+		r' <- toBinary 1 r
+		return $ mconcat [b', g', r']
 	fromBinary _ s = do
 		(r, rest) <- fromBinary 1 s
 		(g, rest') <- fromBinary 1 rest

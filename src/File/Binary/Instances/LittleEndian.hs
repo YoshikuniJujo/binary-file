@@ -14,17 +14,17 @@ import Control.Monad
 instance Field Int where
 	type FieldArgument Int = Int
 	fromBinary n = return . first (wordsToInt . unpack) . getBytes n
-	toBinary n = makeBinary . pack . intToWords n
+	toBinary n = return . makeBinary . pack . intToWords n
 
 instance Field Word32 where
 	type FieldArgument Word32 = Int
 	fromBinary n = return . first (wordsToInt . unpack) . getBytes n
-	toBinary n = makeBinary . pack . intToWords n
+	toBinary n = return . makeBinary . pack . intToWords n
 
 instance Field Integer where
 	type FieldArgument Integer = Int
 	fromBinary n = return . first (wordsToInt . unpack) . getBytes n
-	toBinary n = makeBinary . pack . intToWords n
+	toBinary n = return . makeBinary . pack . intToWords n
 
 wordsToInt :: (Num i, Bits i) => [Word8] -> i
 wordsToInt = foldr (\w i -> fromIntegral w .|. i `shiftL` 8) 0
@@ -38,8 +38,8 @@ instance Field Bool where
 	fromBits () ([], bin) = fromBits () $ pop bin
 	fromBits () (b : bs, bin) = return (b, (bs, bin))
 	consToBits () b (bs, bin)
-		| length bs == 7 = ([], push (b : bs, bin))
-		| otherwise = (b : bs, bin)
+		| length bs == 7 = return ([], push (b : bs, bin))
+		| otherwise = return (b : bs, bin)
 
 data BitsInt = BitsInt { bitsInt :: Int } deriving Show
 
@@ -50,9 +50,9 @@ instance Field BitsInt where
 	fromBits n (b : bs, bin) = first
 		(BitsInt . (fromEnum b .|.) . (`shiftL` 1) . bitsInt) `liftM`
 		fromBits (n - 1) (bs, bin)
-	consToBits 0 _ bb = bb
-	consToBits n (BitsInt f) bb = let
-		(bs, bin) = consToBits (n - 1) (BitsInt $ f `shiftR` 1) bb in
-		if length bs == 7
+	consToBits 0 _ bb = return bb
+	consToBits n (BitsInt f) bb = do
+		(bs, bin) <- consToBits (n - 1) (BitsInt $ f `shiftR` 1) bb
+		return $ if length bs == 7
 			then ([], push (toEnum (f .&. 1) : bs, bin))
 			else (toEnum (f .&. 1) : bs, bin)

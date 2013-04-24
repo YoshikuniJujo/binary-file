@@ -16,23 +16,29 @@ type AddBits b = ([Bool], b)
 class Field f where
 	type FieldArgument f
 	fromBinary :: (Binary b, Functor m, Monad m) => FieldArgument f -> b -> m (f, b)
-	toBinary :: Binary b => FieldArgument f -> f -> b
-	fromBits :: (Binary b, Functor m, Monad m) => FieldArgument f -> AddBits b -> m (f, AddBits b)
-	consToBits :: Binary b => FieldArgument f -> f -> AddBits b -> AddBits b
+	toBinary :: (Binary b, Functor m, Monad m) => FieldArgument f -> f -> m b
+	fromBits :: (Binary b, Functor m, Monad m) =>
+		FieldArgument f -> AddBits b -> m (f, AddBits b)
+	consToBits :: (Binary b, Functor m, Monad m) =>
+		FieldArgument f -> f -> AddBits b -> m (AddBits b)
 
 	fromBits a ([], b) = second ([] ,) `liftM` fromBinary a b
 	fromBits _ _ = error "fromBits: not bytes (1 byte = 8 bits)"
-	consToBits a f ([], b) = ([], toBinary a f `mappend` b)
-	consToBits _ _ _ = error "consToBits: not bytes (1 byte = 8 bits)"
+	consToBits a f ([], b) = do
+		ret <- (`mappend` b) <$> toBinary a f
+		return ([], ret)
+	consToBits _ _ _ = fail "consToBits: not bytes (1 byte = 8 bits)"
 
 	fromBinary a b = do
 		ret <- fromBits a ([], b)
 		case ret of
 			(f, ([], rest)) -> return (f, rest)
 			_ -> fail "fromBinary: not bytes (1 byte = 8 bits)"
-	toBinary a f = case consToBits a f ([], mempty) of
-		([], bin) -> bin
-		_ -> error "toBinary: not bytes (1 byte = 8 bits)"
+	toBinary a f = do
+		ret <- consToBits a f ([], mempty)
+		case ret of
+			([], bin) -> return bin
+			_ -> fail "toBinary: not bytes (1 byte = 8 bits)"
 
 pop :: Binary b => b -> AddBits b
 pop = first (wtbs (8 :: Int) . head . unpack) . getBytes 1

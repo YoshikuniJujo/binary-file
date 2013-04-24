@@ -16,7 +16,7 @@ import Data.ByteString.Lazy
 import qualified Data.ByteString.Lazy.Char8 as BSLC (pack, unpack)
 import qualified Data.ByteString as BS (ByteString, take, drop, concat, uncons, span)
 import qualified Data.ByteString.Char8 ()
-import Control.Monad (replicateM)
+import Control.Monad (replicateM, foldM)
 import "monads-tf" Control.Monad.State (StateT(..), gets)
 import Control.Applicative ((<$>), (<*>))
 import Control.Arrow (first, (&&&))
@@ -29,28 +29,28 @@ import Data.Maybe
 instance Field ByteString where
 	type FieldArgument ByteString = Int
 	fromBinary a = return . getBytes a
-	toBinary _ = makeBinary
+	toBinary _ = return . makeBinary
 
 instance Field BS.ByteString where
 	type FieldArgument BS.ByteString = Int
 	fromBinary n = return . first (BS.concat . toChunks) . getBytes n
-	toBinary _ = makeBinary . fromChunks . (: [])
+	toBinary _ = return . makeBinary . fromChunks . (: [])
 
 instance Field Char where
 	type FieldArgument Char = ()
 	fromBinary _ = return . first (head . BSLC.unpack) . getBytes 1
-	toBinary _ = makeBinary . BSLC.pack . (: [])
+	toBinary _ = return . makeBinary . BSLC.pack . (: [])
 
 instance Field Word8 where
 	type FieldArgument Word8 = ()
 	fromBinary _ = return . first (head . unpack) . getBytes 1
-	toBinary _ = makeBinary . pack . (: [])
+	toBinary _ = return . makeBinary . pack . (: [])
 
 instance Field r => Field [r] where
 	type FieldArgument [r] = (FieldArgument r, Maybe Int)
 	fromBits (a, Just b) = b `times` fromBits a
 	fromBits (a, Nothing) = mempty `whole` fromBits a
-	consToBits (a, _) = flip $ foldr $ consToBits a
+	consToBits (a, _) fs ret = foldM (flip $ consToBits a) ret $ reverse fs
 
 times :: Monad m => Int -> (s -> m (ret, s)) -> s -> m ([ret], s)
 times n f = runStateT $ replicateM n (StateT f)

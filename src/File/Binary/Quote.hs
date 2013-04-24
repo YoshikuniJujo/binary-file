@@ -15,7 +15,7 @@ import Language.Haskell.TH (
 	doE, bindS, noBindS, letS, tildeP)
 import Language.Haskell.TH.Quote (QuasiQuoter(..))
 import Data.ByteString.Lazy.Char8 (pack)
-import Control.Monad (zipWithM)
+import Control.Monad (zipWithM, foldM)
 import "monads-tf" Control.Monad.State (StateT, runStateT, get, put, lift)
 import "monads-tf" Control.Monad.Writer (WriterT, runWriterT, tell)
 import Control.Applicative ((<$>), (<*>))
@@ -98,8 +98,8 @@ writing fe argn items = do
 	[arg, dat, bin0] <- mapM newName ["_arg", "_dat", "bin0"]
 	let fe' = map ((\n -> (n, VarE n `AppE` VarE dat)) . fst) fe
 	flip (clause [varP arg, varP dat, varP bin0]) [] $ normalB $
-		appE (appsE [varE 'foldr, varE '($), varE bin0]) $ listE $
-			(<$> items) $ writef dat
+		appE (appsE [varE 'foldM, varE 'flip `appE` varE '($), varE bin0]) $
+			(varE 'reverse `appE`) $ listE $ (<$> items) $ writef dat
 				<$> expression fe' (varE arg) argn . argOf
 				<*> valueOf
 
