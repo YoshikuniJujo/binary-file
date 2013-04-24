@@ -8,7 +8,6 @@ import Data.ByteString.Lazy (pack, unpack)
 import Data.Word (Word8, Word32)
 import Data.Bits (Bits, (.&.), (.|.), shiftL, shiftR)
 import Control.Arrow (first)
-import Control.Applicative
 import Control.Monad
 
 instance Field Int where
