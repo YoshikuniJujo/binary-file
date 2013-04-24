@@ -9,6 +9,7 @@ import Data.Word (Word8, Word32)
 import Data.Bits (Bits, (.&.), (.|.), shiftL, shiftR)
 import Control.Arrow (first)
 import Control.Applicative
+import Control.Monad
 
 instance Field Int where
 	type FieldArgument Int = Int
@@ -47,7 +48,7 @@ instance Field BitsInt where
 	fromBits 0 bb = return (BitsInt 0, bb)
 	fromBits n ([], bin) = fromBits n $ pop bin
 	fromBits n (b : bs, bin) = first
-		(BitsInt . (fromEnum b .|.) . (`shiftL` 1) . bitsInt) <$>
+		(BitsInt . (fromEnum b .|.) . (`shiftL` 1) . bitsInt) `liftM`
 		fromBits (n - 1) (bs, bin)
 	consToBits 0 _ bb = bb
 	consToBits n (BitsInt f) bb = let

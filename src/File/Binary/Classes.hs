@@ -9,17 +9,18 @@ import Data.Monoid (Monoid, mappend, mempty)
 import Data.Word
 import Control.Arrow (first, second)
 import Control.Applicative
+import Control.Monad
 
 type AddBits b = ([Bool], b)
 
 class Field f where
 	type FieldArgument f
-	fromBinary :: Binary b => FieldArgument f -> b -> Either String (f, b)
+	fromBinary :: (Binary b, Functor m, Monad m) => FieldArgument f -> b -> m (f, b)
 	toBinary :: Binary b => FieldArgument f -> f -> b
-	fromBits :: Binary b => FieldArgument f -> AddBits b -> Either String (f, AddBits b)
+	fromBits :: (Binary b, Functor m, Monad m) => FieldArgument f -> AddBits b -> m (f, AddBits b)
 	consToBits :: Binary b => FieldArgument f -> f -> AddBits b -> AddBits b
 
-	fromBits a ([], b) = second ([] ,) <$> fromBinary a b
+	fromBits a ([], b) = second ([] ,) `liftM` fromBinary a b
 	fromBits _ _ = error "fromBits: not bytes (1 byte = 8 bits)"
 	consToBits a f ([], b) = ([], toBinary a f `mappend` b)
 	consToBits _ _ _ = error "consToBits: not bytes (1 byte = 8 bits)"
@@ -28,7 +29,7 @@ class Field f where
 		ret <- fromBits a ([], b)
 		case ret of
 			(f, ([], rest)) -> return (f, rest)
-			_ -> Left "fromBinary: not bytes (1 byte = 8 bits)"
+			_ -> fail "fromBinary: not bytes (1 byte = 8 bits)"
 	toBinary a f = case consToBits a f ([], mempty) of
 		([], bin) -> bin
 		_ -> error "toBinary: not bytes (1 byte = 8 bits)"

@@ -81,7 +81,7 @@ readf' size (Left val) = do
 	return [bindS (tupP [varP rv, varP rest])
 				(appsE [varE 'fromBits, size rts2, bin]),
 		noBindS $ condE (infixApp (varE rv) (varE '(==)) lit) [e| return () |]
-			[e| Left "bad value" |],
+			[e| fail "bad value" |],
 		letS [flip (valD $ varP bin') [] $ normalB $
 		condE (infixApp (varE rv) (varE '(==)) lit) (varE rest)
 			[e| error "bad value" |]]]
