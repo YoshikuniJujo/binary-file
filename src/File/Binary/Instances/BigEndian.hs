@@ -56,7 +56,7 @@ fromEnum' = fromIntegral . fromEnum
 toEnum' :: (Enum e, Integral i) => i -> e
 toEnum' = toEnum . fromIntegral
 
-fb :: (Bits f, Binary b) => Int -> f -> ([Bool], b) -> (f, ([Bool], b))
+fb :: (Bits f, Num f, Binary b) => Int -> f -> ([Bool], b) -> (f, ([Bool], b))
 fb 0 r bb = (r, bb)
 fb n r ([], b) = fb n r $ pop b
 fb n r (bs, b) = fb (n - 1) (r `shiftL` 1 .|. fromEnum' (last bs)) (init bs, b)
