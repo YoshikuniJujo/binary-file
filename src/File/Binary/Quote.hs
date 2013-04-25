@@ -4,7 +4,7 @@ module File.Binary.Quote (Field(..), Binary(..), binary) where
 
 import File.Binary.Parse (
 	parse, Structure, sName, sDerive, sArgName, sArgType, sItems,
-	SItem, argOf, valueOf, constant, Value, expression)
+	SItem, argOf, valueOf, constant, Value, expression, rights')
 import File.Binary.Classes (Field(..), Binary(..))
 import Language.Haskell.TH (
 	Q, DecsQ, ClauseQ, Clause, ExpQ, Exp(..), Name, FieldExp, StmtQ,
@@ -34,7 +34,7 @@ top bs = let c = sName bs in do
 	(\d i -> [d, i])
 	    <$> dataD (cxt []) c [] [recC c $
 		map (varStrictType <$> fst <*> strictType notStrict . snd) $
-			rights $ map valueOf $ sItems bs] (sDerive bs)
+			rights' $ map valueOf $ sItems bs] (sDerive bs)
 	    <*> instanceD (cxt []) (appT (conT ''Field) (conT c)) [
 		tySynInstD ''FieldArgument [conT c] $ sArgType bs,
 		funD 'fromBits $ (: []) $ return r,
@@ -69,12 +69,12 @@ liftW :: WriterT [FieldExp] Q a -> FieldMonad a
 liftW = lift
 
 readf' :: ([FieldExp] -> ExpQ) -> Value -> FieldMonad [StmtQ]
-readf' size (Left val) = do
+readf' size (Left val, typ) = do
 	(bin, rts2) <- get
 	[rv, rest, bin'] <- liftQ $ mapM newName ["_rv", "_rst", "_bin'"]
 	put (varE bin', rts2)
 	let lit = constant
-		((`sigE` conT ''Integer) . litE . integerL)
+		((`sigE` typ) . litE . integerL)
 		(appE (varE 'pack) . litE . stringL)
 		(\b -> conE (if b then 'True else 'False))
 		val
@@ -85,7 +85,7 @@ readf' size (Left val) = do
 		letS [flip (valD $ varP bin') [] $ normalB $
 		condE (infixApp (varE rv) (varE '(==)) lit) (varE rest)
 			[e| error "bad value" |]]]
-readf' size (Right (var, _)) = do
+readf' size (Right var, _) = do
 	(bin, rts2) <- get
 	[bin', tmp] <- liftQ $ mapM newName ["_bin'", "_tmp"]
 	put (varE bin', (var, VarE tmp) : rts2)
@@ -104,10 +104,10 @@ writing fe argn items = do
 				<*> valueOf
 
 writef :: Name -> ExpQ -> Value -> ExpQ
-writef _ size (Left val) = varE 'consToBits `appE` size `appE` constant
-	((`sigE` conT ''Integer) . litE . integerL)
+writef _ size (Left val, typ) = varE 'consToBits `appE` size `appE` constant
+	((`sigE` typ) . litE . integerL)
 	(appE (varE 'pack) . litE . stringL)
 	(\b -> conE (if b then 'True else 'False))
 	val
-writef dat size (Right (rec, _)) =
+writef dat size (Right rec, _) =
 	varE 'consToBits `appE` size `appE` (varE rec `appE` varE dat)

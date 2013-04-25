@@ -45,6 +45,16 @@ instance Field Bool where
 
 data BitsInt = BitsInt { bitsInt :: Int } deriving Show
 
+instance Eq BitsInt where
+	BitsInt i1 == BitsInt i2 = i1 == i2
+
+instance Num BitsInt where
+	BitsInt i1 + BitsInt i2 = BitsInt $ i1 + i2
+	BitsInt i1 * BitsInt i2 = BitsInt $ i1 * i2
+	abs (BitsInt i) = BitsInt $ abs i
+	signum (BitsInt i) = BitsInt $ signum i
+	fromInteger i = BitsInt $ fromInteger i
+
 instance Field BitsInt where
 	type FieldArgument BitsInt = Int
 	fromBits n = return . first BitsInt . fb n 0

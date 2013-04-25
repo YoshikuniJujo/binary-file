@@ -13,7 +13,7 @@
 
 module File.Binary.Parse (
 	parse, Structure, sName, sDerive, sArgName, sArgType, sItems,
-	SItem, argOf, valueOf, constant, Value, expression
+	SItem, argOf, valueOf, constant, Value, expression, rights'
 ) where
 
 import Text.Peggy (peggy, parseString, space, defaultDelimiter)
@@ -22,7 +22,7 @@ import Language.Haskell.TH (
 	TypeQ, conT, listT, tupleT, appT, Name, mkName, FieldExp)
 import "monads-tf" Control.Monad.Reader (Reader, runReader, ask)
 import Control.Applicative ((<$>), (<*>))
-import Control.Arrow(second)
+import Control.Arrow(first, second)
 import Data.Maybe (fromMaybe)
 import Numeric (readHex)
 
@@ -41,10 +41,17 @@ data Structure = Structure {
 data SItem = SItem { argOf :: Expression, valueOf :: Value }
 type Expression	= Reader ([FieldExp], ExpQ, String) ExpQ
 
+rights' :: [Value] -> [(Name, TypeQ)]
+rights' = map (first fromRight) . filter (isRight . fst)
+
+fromRight (Right x) = x
+isRight (Right x) = True
+isRight _ = False
+
 expression :: [FieldExp] -> ExpQ -> String -> Expression -> ExpQ
 expression ret arg argn e = runReader e (ret, arg, argn)
 
-type Value = Either Constant (Name, TypeQ)
+type Value = (Either Constant Name, TypeQ)
 
 data Constant = Integer Integer | String String | Bool Bool deriving Show
 
@@ -54,6 +61,7 @@ constant _ f _ (String s) = f s
 constant _ _ f (Bool b) = f b
 
 identify :: String -> ([FieldExp], ExpQ, String) -> ExpQ
+-- identify "_" _ = wildP
 identify var (ret, arg, argn)
 	| var == argn = arg
 	| Just var' <- lookup (mkName var) ret = return var'
@@ -74,13 +82,14 @@ arg :: (String, TypeQ)
 	/ ''				{ ("_", conT $ mkName "()") }
 
 dat :: SItem = emp ex? sp typS sp ':' sp val
-	{ SItem (fromMaybe (return $ conE $ mkName "()") $2) $
-		either Left (Right . second (const $4)) $7 }
+	{ SItem (fromMaybe (return $ conE $ mkName "()") $2) ($7, $4) }
+--	{ SItem (fromMaybe (return $ conE $ mkName "()") $2) $
+--		either Left (Right . second (const $4)) $7 }
 
 typS :: TypeQ = '{' typ '}' / ''	{ conT $ mkName "Int" }
 
-val :: Value
-	= var				{ Right $ (mkName $1, conT $ mkName "()") }
+val :: Either Constant Name
+	= var				{ Right $ mkName $1 }
 	/ num				{ Left $ Integer $1 }
 	/ string			{ Left $ String $1 }
 	/ 'True'			{ Left $ Bool True }
@@ -137,7 +146,7 @@ esc :: Char
 	/ 'SUB'						{ '\SUB' }
 
 ln :: String = [A-Z][_a-zA-Z0-9]*			{ $1 : $2 }
-sn :: String = [a-z][_a-zA-Z0-9]*			{ $1 : $2 }
+sn :: String = [_a-z][_a-zA-Z0-9]*			{ $1 : $2 }
 
 sp :: () = (comm / [ \t])*				{ () }
 emp :: () = (comm / lcomm / [ \n])*			{ () }
