@@ -22,7 +22,7 @@ import Language.Haskell.TH (
 	TypeQ, conT, listT, tupleT, appT, Name, mkName, FieldExp)
 import "monads-tf" Control.Monad.Reader (Reader, runReader, ask)
 import Control.Applicative ((<$>), (<*>))
-import Control.Arrow(first, second)
+import Control.Arrow(first)
 import Data.Maybe (fromMaybe)
 import Numeric (readHex)
 
@@ -44,7 +44,11 @@ type Expression	= Reader ([FieldExp], ExpQ, String) ExpQ
 rights' :: [Value] -> [(Name, TypeQ)]
 rights' = map (first fromRight) . filter (isRight . fst)
 
+fromRight :: Either a b -> b
 fromRight (Right x) = x
+fromRight _ = error "not Right"
+
+isRight :: Either a b -> Bool
 isRight (Right x) = True
 isRight _ = False
 

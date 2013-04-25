@@ -19,7 +19,6 @@ import Control.Monad (zipWithM, foldM)
 import "monads-tf" Control.Monad.State (StateT, runStateT, get, put, lift)
 import "monads-tf" Control.Monad.Writer (WriterT, runWriterT, tell)
 import Control.Applicative ((<$>), (<*>))
-import Data.Either (rights)
 
 --------------------------------------------------------------------------------
 

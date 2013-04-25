@@ -40,7 +40,17 @@ instance Field Bool where
 		| length bs == 7 = return ([], push (b : bs, bin))
 		| otherwise = return (b : bs, bin)
 
-data BitsInt = BitsInt { bitsInt :: Int } deriving Show
+newtype BitsInt = BitsInt { bitsInt :: Int } deriving Show
+
+instance Eq BitsInt where
+	BitsInt i1 == BitsInt i2 = i1 == i2
+
+instance Num BitsInt where
+	BitsInt i1 + BitsInt i2 = BitsInt $ i1 + i2
+	BitsInt i1 * BitsInt i2 = BitsInt $ i1 * i2
+	abs (BitsInt i) = BitsInt $ abs i
+	signum (BitsInt i) = BitsInt $ signum i
+	fromInteger i = BitsInt $ fromInteger i
 
 instance Field BitsInt where
 	type FieldArgument BitsInt = Int
