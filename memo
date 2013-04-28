@@ -439,3 +439,10 @@ Either String monad と、letrec は同居できないのだろう。
 
 これだと write のほうに対応できない。
 [Name, ExpQ] なのだから、[Name] が入手できればうまくいくはずだ。
+
+2013.04.25 Thu.
+
+Functor m => の部分は無くそうかな。
+あるいは逆に Applicative m => としようかな。
+
+mod の計算について

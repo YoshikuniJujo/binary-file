@@ -53,7 +53,9 @@ instance Field r => Field [r] where
 	consToBits (a, _) fs ret = foldM (flip $ consToBits a) ret $ reverse fs
 
 times :: Monad m => Int -> (s -> m (ret, s)) -> s -> m ([ret], s)
-times n f = runStateT $ replicateM n (StateT f)
+times n f
+	| n >= 0 = runStateT $ replicateM n (StateT f)
+	| otherwise = error "times: negative times?"
 
 whole :: (Functor m, Monad m, Eq s) => s -> (s -> m (ret, s)) -> s -> m ([ret], s)
 whole e f = runStateT $ do
