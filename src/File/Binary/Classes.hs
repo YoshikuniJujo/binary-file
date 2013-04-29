@@ -15,11 +15,11 @@ type AddBits b = ([Bool], b)
 
 class Field f where
 	type FieldArgument f
-	fromBinary :: (Binary b, Functor m, Monad m) => FieldArgument f -> b -> m (f, b)
-	toBinary :: (Binary b, Functor m, Monad m) => FieldArgument f -> f -> m b
-	fromBits :: (Binary b, Functor m, Monad m) =>
+	fromBinary :: (Binary b, Applicative m, Monad m) => FieldArgument f -> b -> m (f, b)
+	toBinary :: (Binary b, Applicative m, Monad m) => FieldArgument f -> f -> m b
+	fromBits :: (Binary b, Applicative m, Monad m) =>
 		FieldArgument f -> AddBits b -> m (f, AddBits b)
-	consToBits :: (Binary b, Functor m, Monad m) =>
+	consToBits :: (Binary b, Applicative m, Monad m) =>
 		FieldArgument f -> f -> AddBits b -> m (AddBits b)
 
 	fromBits a ([], b) = second ([] ,) `liftM` fromBinary a b
