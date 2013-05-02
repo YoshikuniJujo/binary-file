@@ -85,7 +85,7 @@ arg :: (String, TypeQ)
 	= emp var sp '::' sp typ	{ ($2, $5) }
 	/ ''				{ ("_", conT $ mkName "()") }
 
-dat :: SItem = emp ex? sp typS sp ':' sp val
+dat :: SItem = emp ex? spn typS sp ':' spn val
 	{ SItem (fromMaybe (return $ conE $ mkName "()") $2) ($7, $4) }
 --	{ SItem (fromMaybe (return $ conE $ mkName "()") $2) $
 --		either Left (Right . second (const $4)) $7 }
@@ -152,6 +152,7 @@ esc :: Char
 ln :: String = [A-Z][_a-zA-Z0-9]*			{ $1 : $2 }
 sn :: String = [_a-z][_a-zA-Z0-9]*			{ $1 : $2 }
 
+spn :: () = (comm / [ \t\n])*				{ () }
 sp :: () = (comm / [ \t])*				{ () }
 emp :: () = (comm / lcomm / [ \n])*			{ () }
 lcomm :: Char = '--' [^\n]* [\n]			{ ' ' }
