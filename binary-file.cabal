@@ -2,7 +2,7 @@ build-type:	Simple
 cabal-version:	>= 1.8
 
 name:		binary-file
-version:	0.15.23
+version:	0.15.24
 stability:	experimental
 author:		Yoshikuni Jujo <PAF01143@nifty.ne.jp>
 maintainer:	Yoshikuni Jujo <PAF01143@nifty.ne.jp>
@@ -69,8 +69,8 @@ description:
     > 4: resolutionV
     > 4: color_num
     > 4: important_color_num
-    > ((), Just color_num)[OPENBRACKET](Int, Int, Int)[CLOSEBRACKET]: colors
-    > ((), image_size)[OPENBRACKET]String[CLOSEBRACKET]: image
+    > replicate color_num ()[OPENBRACKET][(Int, Int, Int)][CLOSEBRACKET]: colors
+    > replicate image_size ()[OPENBRACKET]String[CLOSEBRACKET]: image
     >
     > |]
     .
@@ -92,7 +92,7 @@ source-repository	head
 source-repository	this
     type:	git
     location:	git://github.com/YoshikuniJujo/binary-file.git
-    tag:	0.15.23
+    tag:	0.15.24
 
 library
     hs-source-dirs:	src
