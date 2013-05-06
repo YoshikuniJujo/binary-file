@@ -446,3 +446,36 @@ Functor m => の部分は無くそうかな。
 あるいは逆に Applicative m => としようかな。
 
 mod の計算について
+
+2013.05.06 Mon.
+
+readBitmap をちゃんとしようかな。
+そして、近々独立させよう。
+とりあえずパレットについて。
+color_num が 0 のときにちゃんとした色数を扱えるようにする。
+bits_per_pixel 1, 4, 8, (16), 24, 32
+
+まずは圧縮無しのみに対応しよう。
+
+1, 4, 8 の場合は [Int] にしようかな。
+ただ、これだとメモリを食いすぎるかもしれない。
+24, 32 の場合は RGB にしようかな。
+RGB24 と RGB32 に分けよう。
+
+やはり、画像ファイルを pixel ごとにリストにするとメモリを食いすぎるな。
+
+そうじゃなくて正格版の ByteString 使ってたせいだった。
+
+今の実装はだめだ。
+何故なら 4 byte 境界に line を配置する必要があるから。
+以下のような Line を作ってから、それを高さぶん集める必要があると思う。
+[binary|
+
+Line deriving Show
+
+arg :: (Int, Int)
+
+replicate (fst arg) (snd arg){[BitsInt]}: line
+paddBits (fst arg * snd arg){[BitsInt]}: 0
+
+|]

@@ -32,3 +32,5 @@
 	(a, Maybe Integer) のほうにしておこうかな。
 	でも、2G のファイルを使うことってあんまないかな。
 	今のところは (a, Maybe Int) でいいかもしれない。
+15. readBitmap で color_num == 0 のときにちゃんとパレットの数が2^bits_per_pixel に
+	なるようにする

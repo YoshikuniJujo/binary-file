@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module File.Binary.Instances.MSB0 (BitsInt) where
+module File.Binary.Instances.MSB0 (BitsInt(..)) where
 
 import File.Binary.Classes
 import Data.Bits (Bits, shiftL, shiftR, (.|.), (.&.))
