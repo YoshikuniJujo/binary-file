@@ -18,7 +18,7 @@ module File.Binary.Parse (
 
 import Text.Peggy (peggy, parseString, space, defaultDelimiter)
 import Language.Haskell.TH (
-	ExpQ, integerL, litE, varE, conE, tupE, appE, uInfixE, parensE,
+	ExpQ, integerL, litE, varE, conE, listE, tupE, appE, uInfixE, parensE,
 	TypeQ, conT, listT, tupleT, appT, Name, mkName, FieldExp)
 import "monads-tf" Control.Monad.Reader (Reader, runReader, ask)
 import Control.Applicative ((<$>), (<*>))
@@ -115,6 +115,11 @@ ex1 :: Expression
 	/ num				{ return $ litE $ integerL $1 }
 	/ lname				{ return $ conE $1 }
 	/ var				{ identify $1 <$> ask }
+	/ '[' list ']'			{ listE <$> $1 }
+
+list :: Reader ([FieldExp], ExpQ, String) [ExpQ]
+	= ex sp "," sp list		{ (:) <$> $1 <*> $4 }
+	/ ex				{ (: []) <$> $1 }
 
 op :: Expression
 	= [!\\#$%&*+./<=>?@^|~\-]+	{ return $ varE $ mkName $1 }

@@ -5,6 +5,7 @@ import Prelude hiding (concat)
 import File.Binary (binary, Field(..))
 import File.Binary.Instances ()
 import File.Binary.Instances.BigEndian ()
+import File.Binary.Instances.MSB0 ()
 import CRC (crc)
 import Codec.Compression.Zlib (
 	decompress, compressWith, defaultCompressParams, CompressParams(..),
@@ -81,7 +82,8 @@ PNG deriving Show
 2: "\r\n"
 1: "\SUB"
 1: "\n"
-((), Nothing){[Chunk]}: chunks
+-- ((), Nothing){[Chunk]}: chunks
+repeat (){[Chunk]}: chunks
 
 |]
 
@@ -90,7 +92,8 @@ PNG deriving Show
 Chunk deriving Show
 
 4: chunkSize
-((), Just 4){String}: chunkName
+-- ((), Just 4){String}: chunkName
+replicate 4 (){String}: chunkName
 (chunkSize, chunkName){ChunkBody}: chunkData
 4{Word32}:chunkCRC
 
@@ -120,7 +123,7 @@ instance Field ChunkBody where
 	toBinary (n, _) (ChunkIDAT c) = toBinary n c
 	toBinary (n, _) (ChunkTEXT c) = toBinary n c
 	toBinary _ (ChunkIEND c) = toBinary () c
-	toBinary (n, _) (Others str) = toBinary ((), Just n) str
+	toBinary (n, _) (Others str) = toBinary (replicate n ()) str -- toBinary ((), Just n) str
 	fromBinary (_, "IHDR") = fmap (first ChunkIHDR) . fromBinary ()
 	fromBinary (_, "gAMA") = fmap (first ChunkGAMA) . fromBinary ()
 	fromBinary (_, "sRGB") = fmap (first ChunkSRGB) . fromBinary ()
@@ -130,7 +133,7 @@ instance Field ChunkBody where
 	fromBinary (n, "IDAT") = fmap (first ChunkIDAT) . fromBinary n
 	fromBinary (n, "tEXt") = fmap (first ChunkTEXT) . fromBinary n
 	fromBinary (_, "IEND") = fmap (first ChunkIEND) . fromBinary ()
-	fromBinary (n, _) = fmap (first Others) . fromBinary ((), Just n)
+	fromBinary (n, _) = fmap (first Others) . fromBinary (replicate n ()) -- ((), Just n)
 
 [binary|
 
@@ -177,7 +180,8 @@ deriving Show
 
 arg :: Int
 
-(4, Just (arg `div` 4)){[Int]}: chrms
+-- (4, Just (arg `div` 4)){[Int]}: chrms
+replicate (arg `div` 4) 4{[Int]}: chrms
 
 |]
 
@@ -187,7 +191,8 @@ PLTE deriving Show
 
 arg :: Int
 
-((), Just (arg `div` 3)){[(Int, Int, Int)]}: colors
+-- ((), Just (arg `div` 3)){[(Int, Int, Int)]}: colors
+replicate (arg `div` 3) (){[(Int, Int, Int)]}: colors
 
 |]
 
@@ -228,7 +233,8 @@ TEXT deriving Show
 
 arg :: Int
 
-((), Just arg){String}: text
+-- ((), Just arg){String}: text
+replicate arg (){String}: text
 
 |]
 
