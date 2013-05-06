@@ -1,123 +1,57 @@
-{-# LANGUAGE QuasiQuotes, TypeFamilies, ScopedTypeVariables #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
-import File.Binary (binary, Field(..), Binary(..), readBinaryFile, writeBinaryFile)
-import File.Binary.Instances.LittleEndian ()
-import File.Binary.Instances ()
-import File.Binary.Instances.MSB0
-import Data.ByteString.Lazy (singleton)
-import Data.Monoid (mconcat)
-import Control.Applicative ((<$>))
-import System.Environment (getArgs)
-import qualified Data.ByteString.Lazy as BSL
-import Control.Arrow
-
---------------------------------------------------------------------------------
+import System.Environment
+import Control.Applicative
+import BitmapCore
+import Data.List
 
 main :: IO ()
 main = do
 	[inf, outf] <- getArgs
-	bmp <- readBitmap inf
-	putStrLn $ take 1000 (show bmp) ++ "..."
-	writeBitmap outf bmp
-
-readBitmap :: FilePath -> IO Bitmap
-readBitmap fp = do
-	Right (bmp, "") <- fromBinary () <$> readBinaryFile fp
---	Right (bmp, _) <- fromBinary () <$> BSL.readFile fp
-	return bmp
-
-writeBitmap :: FilePath -> Bitmap -> IO ()
-writeBitmap fp bmp = do
+	Right (bmp :: Bitmap, "") <- fromBinary () <$> readBinaryFile inf
+	putStrLn $ take 5000 (show bmp) ++ "..."
 	let Right bin = toBinary () bmp
---	BSL.writeFile fp bin
-	writeBinaryFile fp bin
+	writeBinaryFile outf bin
 
-[binary|
+type Image = [[RGB8]]
+data RGB8 = RGB8 Int Int Int deriving (Show, Eq, Ord)
 
-Bitmap
+rgb24ToRGB8 :: RGB24 -> RGB8
+rgb24ToRGB8 (RGB24 r g b) = RGB8 r g b
 
-deriving Show
+rgb32ToRGB8 :: RGB32 -> RGB8
+rgb32ToRGB8 (RGB32 r g b) = RGB8 r g b
 
-2: "BM"
-4: fileSize
-2: 0
-2: 0
-4: offset
+rgb8ToRGB32 :: RGB8 -> RGB32
+rgb8ToRGB32 (RGB8 r g b) = RGB32 r g b
 
-4: 40
-4: width
-4: height
-2: 1
-2: bits_per_pixel
-4: compression
-4: image_size
-4: resolutionH
-4: resolutionV
-4: color_num
-4: important_colors_num
-replicate color_num (){[RGB32]}: colors
-replicate height (bits_per_pixel, width){[Line]}: image
+linesToImage :: [RGB32] -> [Line] -> Image
+linesToImage plt = map (pixelsToImage plt . line)
 
-|]
+pixelsToImage :: [RGB32] -> Pixels -> [RGB8]
+pixelsToImage _ (Colors24 cs) = map rgb24ToRGB8 cs
+pixelsToImage _ (Colors32 cs) = map rgb32ToRGB8 cs
+pixelsToImage plt (Indices is) = map rgb32ToRGB8 $ map (plt !!) is
 
-[binary|
+bmpToImage :: Bitmap -> Image
+bmpToImage = linesToImage <$> colors <*> image
 
-Line deriving Show
+getMandrill :: IO Image
+getMandrill = do
+	Right (bmp, "") <- fromBinary () <$> readBinaryFile "tmp/Mandrill.bmp"
+	return $ bmpToImage bmp
 
-arg :: (Int, Int)
+getLady :: IO Image
+getLady = do
+	Right (bmp, "") <- fromBinary () <$> readBinaryFile "tmp/test.bmp"
+	return $ bmpToImage bmp
 
-(fst arg, snd arg){Pixels}: line
-paddBits (fst arg * snd arg){BitsInt}: 0
+-- imageToBMP :: Image -> Bitmap
 
-|]
+getColors :: Image -> [RGB32]
+getColors = map (rgb8ToRGB32 . head) . group . sort . concat
 
-paddBits :: Int -> Int
-paddBits n
-	| n `mod` 32 == 0 = 0
-	| otherwise = 32 - n `mod` 32
-
-data Pixels = Indices [Int] | Colors24 [RGB24] | Colors32 [RGB32] deriving Show
-
-instance Field Pixels where
-	type FieldArgument Pixels = (Int, Int)
-	fromBinary (b, s) bs
-		| b == 1 || b == 4 || b == 8 = first (Indices . map bitsInt) <$>
-			fromBinary (replicate s b) bs
-		| b == 24 =
-			first Colors24 <$> fromBinary (replicate s ()) bs
-		| b == 32 =
-			first Colors32 <$> fromBinary (replicate s ()) bs
-		| otherwise = error "bad bits"
-	toBinary (b, _) (Indices is) = toBinary (repeat b) (map BitsInt is)
-	toBinary (_, _) (Colors24 rgbs) = toBinary (repeat ()) rgbs
-	toBinary (_, _) (Colors32 rgbs) = toBinary (repeat ()) rgbs
-
-data RGB24 = RGB24 Int Int Int deriving Show
-data RGB32 = RGB32 Int Int Int deriving Show
-
-instance Field RGB24 where
-	type FieldArgument RGB24 = ()
-	fromBinary _ s = do
-		(b, rest) <- fromBinary 1 s
-		(g, rest') <- fromBinary 1 rest
-		(r, rest'') <- fromBinary 1 rest'
-		return (RGB24 r g b, rest'')
-	toBinary _ (RGB24 r g b) = do
-		b' <- toBinary 1 b
-		g' <- toBinary 1 g
-		r' <- toBinary 1 r
-		return $ mconcat [b', g', r']
-
-instance Field RGB32 where
-	type FieldArgument RGB32 = ()
-	fromBinary _ s = do
-		(b, rest) <- fromBinary 1 s
-		(g, rest') <- fromBinary 1 rest
-		(r, rest'') <- fromBinary 1 rest'
-		return (RGB32 r g b, snd $ getBytes 1 rest'')
-	toBinary _ (RGB32 r g b) = do
-		b' <- toBinary 1 b
-		g' <- toBinary 1 g
-		r' <- toBinary 1 r
-		return $ mconcat [b', g', r', makeBinary $ singleton 0]
+notBigger :: Int -> [a] -> Bool
+notBigger _ [] = True
+notBigger 0 _ = False
+notBigger n (x : xs) = notBigger (n - 1) xs
