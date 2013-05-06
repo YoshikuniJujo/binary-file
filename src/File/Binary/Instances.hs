@@ -16,9 +16,9 @@ import Data.ByteString.Lazy
 import qualified Data.ByteString.Lazy.Char8 as BSLC (pack, unpack)
 import qualified Data.ByteString as BS (ByteString, take, drop, concat, uncons, span)
 import qualified Data.ByteString.Char8 ()
-import Control.Monad (replicateM, foldM)
-import "monads-tf" Control.Monad.State (StateT(..), gets)
-import Control.Applicative (Applicative, (<$>), (<*>))
+import Control.Monad (foldM)
+import "monads-tf" Control.Monad.State (StateT(..))
+import Control.Applicative ((<$>))
 import Control.Arrow (first, (&&&))
 import Data.Monoid (mempty)
 import Data.Char
@@ -47,22 +47,12 @@ instance Field Word8 where
 	toBinary _ = return . makeBinary . pack . (: [])
 
 instance Field r => Field [r] where
--- {-
 	type FieldArgument [r] = [FieldArgument r]
 	fromBits as = smap mempty as fromBits
 	consToBits as fs ret = foldM (flip $ uncurry consToBits) ret $ reverse $ zip as fs
--- -}
-{-
-	type FieldArgument [r] = (FieldArgument r, Maybe Int)
-	fromBits (a, Just b) = b `times` fromBits a
-	fromBits (a, Nothing) = mempty `whole` fromBits a
-	consToBits (a, _) fs ret = foldM (flip $ consToBits a) ret $ reverse fs
--}
-
-fcConsToBits ret (a, f) = consToBits a f ret
 
 myMapM :: (Monad m, Functor m) => (a -> m (Maybe b)) -> [a] -> m [b]
-myMapM f [] = return []
+myMapM _ [] = return []
 myMapM f (x : xs) = do
 	ret <- f x
 	case ret of
@@ -71,25 +61,10 @@ myMapM f (x : xs) = do
 
 smap :: (Monad m, Functor m, Eq s) =>
 	s -> [a] -> (a -> s -> m (ret, s)) -> s -> m ([ret], s)
-smap e xs f =
--- first (map fromJust . takeWhile isJust) <$> runStateT (mapM (StateT . f') xs) s
-	runStateT $ myMapM (StateT . f') xs
+smap e xs f = runStateT $ myMapM (StateT . f') xs
 	where
---	f' :: (Monad m, Functor m, Eq s) => a -> s -> m (Maybe ret, s)
 	f' x s	| s == e = return (Nothing, s)
 		| otherwise = first Just <$> f x s
-		
-
-times :: Monad m => Int -> (s -> m (ret, s)) -> s -> m ([ret], s)
-times n f
-	| n >= 0 = runStateT $ replicateM n (StateT f)
-	| otherwise = error "times: negative times?"
-
-whole :: (Functor m, Monad m, Eq s) => s -> (s -> m (ret, s)) -> s -> m ([ret], s)
-whole e f = runStateT $ do
-	emp <- gets (== e)
-	if emp then return [] else
-		(:) <$> StateT f <*> (StateT $ whole e f)
 
 --------------------------------------------------------------------------------
 
