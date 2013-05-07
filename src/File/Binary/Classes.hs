@@ -27,7 +27,8 @@ class Field f where
 	consToBits a f ([], b) = do
 		ret <- (`mappend` b) <$> toBinary a f
 		return ([], ret)
-	consToBits _ _ _ = fail "consToBits: not bytes (1 byte = 8 bits)"
+	consToBits _ _ (bits, _) =
+		fail $ "consToBits: not bytes (1 byte = 8 bits) " ++ show bits
 
 	fromBinary a b = do
 		ret <- fromBits a ([], b)
@@ -38,7 +39,8 @@ class Field f where
 		ret <- consToBits a f ([], mempty)
 		case ret of
 			([], bin) -> return bin
-			_ -> fail "toBinary: not bytes (1 byte = 8 bits)"
+			(bits, _) -> fail $
+				"toBinary: not bytes (1 byte = 8 bits) " ++ show bits
 
 pop :: Binary b => b -> AddBits b
 pop = first (wtbs (8 :: Int) . head . unpack) . getBytes 1

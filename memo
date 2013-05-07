@@ -479,3 +479,16 @@ replicate (fst arg) (snd arg){[BitsInt]}: line
 paddBits (fst arg * snd arg){[BitsInt]}: 0
 
 |]
+
+2013.05.07 Tue.
+
+fileSize, offset, image_size は後から求める。
+width, height はすぐわかる。
+bits_per_pixel は color_num から出す。
+compression は 0
+resolutionH, resolutionV は今のところ 0 にしておこうか。
+color_num は colors を数える。
+important_colors_num は 0 にしておく。
+で toBinary (replicate height (bits_per_pixel, width) image を使い image_size を出す
+で toBinary () colors を使い offset を出す(+ 14 + 40)
+fileSize = image_size + offset かな。

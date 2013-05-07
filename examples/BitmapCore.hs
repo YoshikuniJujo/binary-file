@@ -9,8 +9,11 @@ module BitmapCore (
 	RGB32(..),
 	fromBinary,
 	toBinary,
+	consToBits,
 	readBinaryFile,
-	writeBinaryFile
+	writeBinaryFile,
+
+	paddBits
 ) where
 
 import File.Binary (binary, Field(..), Binary(..), readBinaryFile, writeBinaryFile)
@@ -83,9 +86,9 @@ instance Field Pixels where
 		| b == 32 =
 			first Colors32 <$> fromBinary (replicate s ()) bs
 		| otherwise = error "bad bits"
-	toBinary (b, _) (Indices is) = toBinary (repeat b) (map BitsInt is)
-	toBinary (_, _) (Colors24 rgbs) = toBinary (repeat ()) rgbs
-	toBinary (_, _) (Colors32 rgbs) = toBinary (repeat ()) rgbs
+	consToBits (b, _) (Indices is) = consToBits (repeat b) (map BitsInt is)
+	consToBits (_, _) (Colors24 rgbs) = consToBits (repeat ()) rgbs
+	consToBits (_, _) (Colors32 rgbs) = consToBits (repeat ()) rgbs
 
 data RGB24 = RGB24 Int Int Int deriving (Show, Eq)
 data RGB32 = RGB32 Int Int Int deriving (Show, Eq)
