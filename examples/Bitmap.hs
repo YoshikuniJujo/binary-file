@@ -11,7 +11,7 @@ module Bitmap (
 import BitmapCore
 import Data.Image
 import Control.Applicative
-import Control.Arrow
+-- import Control.Arrow
 
 -- import Data.Word
 import Data.List
@@ -20,19 +20,6 @@ import Data.Maybe
 import File.Binary
 
 data RGB8 = RGB8 Int Int Int deriving (Show, Eq, Ord)
-data Image = Image { imageX :: Int, imageY :: Int, getImg :: [[RGB8]] }
-
-instance TwoDImage Image where
-	type TwoDImageColor Image = RGB8
-	new c w h = return $ Image 0 0 $ replicate h $ replicate w c
-	fromColorList = return . Image 0 0
-	toColorList = return . getImg
-	getSize = return . (length . head &&& length) . getImg
-	getXY = return . (imageX &&& imageY)
-	setXY img (x, y) = return img { imageX = x, imageY = y }
-	getPixel = return . ((!!) <$> ((!!) <$> getImg <*> imageY) <*> imageX)
-	setPixel img c = return $ img { getImg = getImg img `set` imageY img $
-		(getImg img !! imageY img) `set` imageX img $ c }
 
 readBMPFile :: (TwoDImage i, Color (TwoDImageColor i)) => FilePath -> IO i
 readBMPFile = (bmpToTwoDImage =<<) . readBinaryFile
@@ -89,9 +76,6 @@ imageToBMP img_ = Bitmap {
 	isize = getISize plt img
 	img = reverse img_
 
-set :: [a] -> Int -> a -> [a]
-set xs i x = take i xs ++ [x] ++ drop (i + 1) xs
-
 {-
 getSample, getGradation :: IO Bitmap
 getSample = fst <$> (fromBinary () =<< readBinaryFile "sample.bmp")
@@ -124,7 +108,7 @@ getColors = map (rgb8ToRGB32 . head) . group . sort . concat
 notBigger :: Int -> [a] -> Bool
 notBigger _ [] = True
 notBigger 0 _ = False
-notBigger n (x : xs) = notBigger (n - 1) xs
+notBigger n (_ : xs) = notBigger (n - 1) xs
 
 getbpp :: [RGB32] -> Int
 getbpp cs

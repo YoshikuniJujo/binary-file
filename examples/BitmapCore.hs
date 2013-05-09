@@ -86,6 +86,8 @@ instance Field Pixels where
 		| b == 32 =
 			first Colors32 <$> fromBits (replicate s ()) ([], bs)
 		| otherwise = error "bad bits"
+	fromBits _ _ = error
+		"instance Field Pixels: fromBits _ (_ : _, _) is not implemented"
 	consToBits (b, _) (Indices is) = consToBits (repeat b) (map BitsInt is)
 	consToBits (_, _) (Colors24 rgbs) = consToBits (repeat ()) rgbs
 	consToBits (_, _) (Colors32 rgbs) = consToBits (repeat ()) rgbs
