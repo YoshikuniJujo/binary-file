@@ -492,3 +492,18 @@ important_colors_num は 0 にしておく。
 で toBinary (replicate height (bits_per_pixel, width) image を使い image_size を出す
 で toBinary () colors を使い offset を出す(+ 14 + 40)
 fileSize = image_size + offset かな。
+
+2013.05.08 Wed.
+
+class TwoDImage i where
+	type TwoDImageColor i
+	next, pre, up, down, left, right :: Monad m => i -> m i
+	getXY :: Monad m => i -> m (Int, Int)
+	setXY :: Monad m => i -> (Int, Int) -> m i
+	getPixel :: Monad m => i -> m (TwoDImageColor i)
+	setPixel :: Monad m => i -> TwoDImageColor i -> m i
+
+class Color c where
+	fromRGB8 :: Word8 -> Word8 -> Word8 -> c
+
+some :: (TwoDImageColor i, Color (TwoDImageColor i)) => ...

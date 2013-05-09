@@ -78,13 +78,13 @@ data Pixels
 
 instance Field Pixels where
 	type FieldArgument Pixels = (Int, Int)
-	fromBinary (b, s) bs
+	fromBits (b, s) ([], bs)
 		| b == 1 || b == 4 || b == 8 = first (Indices . map bitsInt) <$>
-			fromBinary (replicate s b) bs
+			fromBits (replicate s b) ([], bs)
 		| b == 24 =
-			first Colors24 <$> fromBinary (replicate s ()) bs
+			first Colors24 <$> fromBits (replicate s ()) ([], bs)
 		| b == 32 =
-			first Colors32 <$> fromBinary (replicate s ()) bs
+			first Colors32 <$> fromBits (replicate s ()) ([], bs)
 		| otherwise = error "bad bits"
 	consToBits (b, _) (Indices is) = consToBits (repeat b) (map BitsInt is)
 	consToBits (_, _) (Colors24 rgbs) = consToBits (repeat ()) rgbs
