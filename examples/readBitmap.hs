@@ -258,3 +258,10 @@ scalePattern img =
 	img' `beside` img' `above` img `beside` (img' `above` img' `above` img')
 	where
 	img' = scaleDown img
+
+gradation :: Image
+gradation =
+	replicate 5 (map (\x -> RGB8 x x x) $ [0, 2 .. 255]) ++
+	replicate 5 (map (\x -> RGB8 x 0 0) $ [0, 2 .. 255]) ++
+	replicate 5 (map (\x -> RGB8 0 x 0) $ [0, 2 .. 255]) ++
+	replicate 5 (map (\x -> RGB8 0 0 x) $ [0, 2 .. 255])
