@@ -520,3 +520,40 @@ next と getXY と setXY を使うべきかとも思うが、空間効率の問�
 中間的な型をさしかえることで、Array や STArray、ByteString 等で効率を改善する。
 そういうやりかたが理想的なのだが。
 ただ interlaced なものだけをなんとか解決すればできそうな気もするし。
+
+さて、とりあえず、binary-choice を作ろう。以下のような感じにする。
+[binary-choice|
+
+ChunkBody deriving Show
+
+type Argument = (Int, String)
+
+(_, "IHDR"): IHDR
+(_, "GAMA"): GAMA
+	:
+	:
+_: Other
+
+|]
+
+data ChunkBody =
+	ChunkBodyIHDR IHDR
+	ChunkBodyGAMA GAMA
+		:
+		:
+	ChunkBodyOther Other
+	deriving Show
+
+fromBinary a@(_, "IHDR") = fmap (first ChunkBodyIHDR) . fromBinary a
+fromBinary a@(_, "GAMA") = fmap (first ChunkBodyGAMA) . fromBinary a
+	:
+	:
+fromBinary a@(_) = fmap (first ChunkBodyOther) . fromBinary a
+
+toBinary a (ChunkBodyIHDR f) = toBinary a f
+toBinary a (ChunkBodyGAMA f) = toBinary a f
+	:
+	:
+toBinary a (ChunkBodyOther f) = toBinary a f
+
+上記をそれぞれ、fromBits と consToBits に変えて定義する。
