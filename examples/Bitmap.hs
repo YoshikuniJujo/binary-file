@@ -21,14 +21,30 @@ import File.Binary
 
 data RGB8 = RGB8 Int Int Int deriving (Show, Eq, Ord)
 
-readBMPFile :: (TwoDImage i, Color (TwoDImageColor i)) => FilePath -> IO i
+readBMPFile, readBMPFile' :: (TwoDImage i, Color (TwoDImageColor i)) => FilePath -> IO i
 readBMPFile = (bmpToTwoDImage =<<) . readBinaryFile
+readBMPFile' = (bmpToTwoDImage' =<<) . readBinaryFile
 
-bmpToTwoDImage :: (Binary b, TwoDImage i, Color (TwoDImageColor i),
+bmpToTwoDImage, bmpToTwoDImage' :: (Binary b, TwoDImage i, Color (TwoDImageColor i),
 	Monad m, Applicative m) => b -> m i
 bmpToTwoDImage b = do
 	(bmp :: Bitmap, _) <- fromBinary () b
 	fromColorList $ bmpToColorList bmp
+
+bmpToTwoDImage' b = do
+	cl <- bmpToColorList . fst <$> fromBinary () b
+	i <- new (fromRGB8 0 0 0) (length $ head cl) (length cl)
+	makeImage cl i
+
+makeImage :: (TwoDImage i, Color (TwoDImageColor i),
+	Monad m, Applicative m) => [[TwoDImageColor i]] -> i -> m i
+makeImage cl i = do
+	(w, h) <- getSize i
+	(x, y) <- getXY i
+	if (x == w - 1 && y == h - 1) then return i else do
+		i' <- setPixel i (cl !! y !! x)
+		i'' <- next i'
+		makeImage cl i''
 
 twoDImageToBMP :: (Binary b, TwoDImage i, Color (TwoDImageColor i),
 	Monad m, Applicative m) => i -> m b

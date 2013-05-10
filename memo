@@ -507,3 +507,16 @@ class Color c where
 	fromRGB8 :: Word8 -> Word8 -> Word8 -> c
 
 some :: (TwoDImageColor i, Color (TwoDImageColor i)) => ...
+
+2013.05.10 Fri.
+
+class TwoDImage に toColorList と fromColorList を入れたが、
+いまいちな気がする。
+interlaced な image に対応できないので。
+next と getXY と setXY を使うべきかとも思うが、空間効率の問題があるな。
+
+僕の夢は遠すぎるのだろうか。
+つまり、とりあえずリストで簡単に作っておいて、
+中間的な型をさしかえることで、Array や STArray、ByteString 等で効率を改善する。
+そういうやりかたが理想的なのだが。
+ただ interlaced なものだけをなんとか解決すればできそうな気もするし。
