@@ -557,3 +557,20 @@ toBinary a (ChunkBodyGAMA f) = toBinary a f
 toBinary a (ChunkBodyOther f) = toBinary a f
 
 上記をそれぞれ、fromBits と consToBits に変えて定義する。
+
+2013.05.11 Sat.
+
+class TwoDImage について。
+
+(Int -> Int -> Color) -> m TwoDImage のような感じ。
+それと、
+type TwoDImageRaw をつくって、TwoDImageRaw -> m TwoDImage のようなメソッドを
+つくろうか。
+そうだ Raw を in と out で区別しておけばいろいろと便利かもしれない。
+TwoDImageInput -> m TwoDImage
+TwoDImage -> m TwoDImageOutput
+
+また、TwoDImage -> m ((Int, Int), Color) のような関数もいいかもしれない。
+すると next と prev はいらなくなるな。
+
+また、type TwoDImageMonad も必要だな。
