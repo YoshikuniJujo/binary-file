@@ -87,3 +87,14 @@ darken :: RGB8 -> RGB8
 darken (RGB8 r g b) = RGB8 (dark r) (dark g) (dark b)
 	where
 	dark w = w `div` 2
+
+darken2 :: RGB8 -> RGB8
+darken2 (RGB8 r g b) = RGB8 (dark r) (dark g) (dark b)
+	where
+	dark w	| w < 128 = 0
+		| otherwise = 255 - (255 - w) * 2
+
+nega :: RGB8 -> RGB8
+nega (RGB8 r g b) = RGB8 (ng r) (ng g) (ng b)
+	where
+	ng w = 255 - w
