@@ -29,6 +29,13 @@ getPair''' x = (f, (0, 1))
 	where
 	(f, _) = properFraction x
 
+getPair'''' :: Double -> (Int,(Double, Double))
+getPair'''' x
+	| y > 0.5 = (f, (0, 1))
+	| otherwise = (f, (1, 0))
+	where
+	(f, y) = properFraction x
+
 circlePairs :: [(Int, (Double, Double))]
 circlePairs = map getPair circleXs
 
