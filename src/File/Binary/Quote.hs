@@ -12,7 +12,7 @@ import Language.Haskell.TH (
 	instanceD, funD, clause, normalB, valD, tySynInstD, cxt,
 	conT, appT, sigE, varP, tupP, condE, recConE, tupE, listE,
 	appE, appsE, infixApp, varE, conE, litE, newName, integerL, stringL,
-	doE, bindS, noBindS, letS, tildeP)
+	doE, bindS, noBindS, letS, tildeP, tySynEqn)
 import Language.Haskell.TH.Quote (QuasiQuoter(..))
 import Data.ByteString.Lazy.Char8 (pack)
 import Control.Monad (zipWithM, foldM)
@@ -35,7 +35,7 @@ top bs = let c = sName bs in do
 		map (varStrictType <$> fst <*> strictType notStrict . snd) $
 			rights' $ map valueOf $ sItems bs] (sDerive bs)
 	    <*> instanceD (cxt []) (appT (conT ''Field) (conT c)) [
-		tySynInstD ''FieldArgument [conT c] $ sArgType bs,
+		tySynInstD ''FieldArgument . tySynEqn [conT c] $ sArgType bs,
 		funD 'fromBits $ (: []) $ return r,
 		funD 'consToBits $ (: []) $ writing fe (sArgName bs) (sItems bs)]
 
